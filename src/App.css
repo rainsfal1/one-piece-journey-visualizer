@@ -1,0 +1,302 @@
+.app-shell {
+  height: 100vh;
+  width: 100%;
+  background: linear-gradient(180deg, #0b1220 0%, #141c2c 100%);
+}
+
+canvas {
+  display: block;
+}
+
+.scene-wrapper {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(180deg, #0b1220 0%, #141c2c 100%);
+}
+
+.controls-layer {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.control-buttons {
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.control-buttons.left {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+}
+
+.control-buttons.right {
+  display: none;
+}
+
+.control-button {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  min-width: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.control-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.control-button:active {
+  transform: translateY(0);
+}
+
+.icon-button {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  min-width: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.icon-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.icon-button:active {
+  transform: translateY(0);
+}
+
+.top-right-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 25;
+}
+
+
+.slider-container {
+  width: 40%;
+  pointer-events: auto;
+}
+
+.timeline-slider {
+  width: 100%;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+}
+
+.arc-modal {
+  background: rgba(0, 0, 0, 0.85);
+  color: #f5f8ff;
+  max-width: 640px;
+  width: 90%;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.modal-saga {
+  font-size: 12px;
+  color: #c8d4ff;
+}
+
+.modal-close {
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.modal-episodes {
+  font-weight: 600;
+  color: #dbe5ff;
+}
+
+.modal-summary {
+  margin-top: 4px;
+}
+
+.modal-section-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.modal-section ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.modal-section li {
+  margin-bottom: 4px;
+}
+
+.modal-metrics {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #dbe5ff;
+}
+
+.hero-card {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.72);
+  color: #f5f8ff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  z-index: 24;
+  min-width: 320px;
+  text-align: center;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.hero-card:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateX(-50%) translateY(-1px);
+}
+
+.hero-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.hero-sub {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  font-size: 13px;
+  color: #dbe5ff;
+}
+
+.hero-episodes {
+  opacity: 0.9;
+}
+
+.arc-info-panel {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10;
+  max-width: 420px;
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 10px;
+  color: #f5f8ff;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.arc-info-panel .arc-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-size: 16px;
+}
+
+.arc-info-panel .arc-saga {
+  color: #c8d4ff;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.arc-info-panel .arc-episodes {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #c8d4ff;
+}
+
+.arc-info-panel .arc-summary {
+  margin-bottom: 6px;
+}
+
+.arc-info-panel .arc-section {
+  margin-bottom: 8px;
+}
+
+.arc-info-panel .arc-section-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.arc-info-panel .arc-list {
+  margin: 0;
+  padding-left: 16px;
+  list-style: disc;
+  color: #dbe5ff;
+}
+
+.arc-info-panel .arc-list li {
+  margin-bottom: 4px;
+}
+
+.arc-info-panel .arc-metrics {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #dbe5ff;
+}

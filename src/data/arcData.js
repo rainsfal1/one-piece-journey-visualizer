@@ -1,0 +1,428 @@
+import episodes from './episodes.json'
+import { arcs } from './arcs.js'
+
+const normalize = (value) => value.toLowerCase().replace(/[^a-z0-9]+/g, '')
+
+const arcNameMap = {
+  gecko: 'Syrup Village Arc',
+  baratie: 'Baratie Arc',
+  arlong: 'Arlong Park Arc',
+  loguetown: 'Loguetown Arc',
+  whiskey: 'Whisky Peak Arc',
+  'little-garden': 'Little Garden Arc',
+  drum: 'Drum Island Arc',
+  alabasta: 'Arabasta Arc',
+  jaya: 'Jaya Arc',
+  skypiea: 'Skypiea Arc',
+  'long-ring': 'Long Ring Long Land Arc',
+  water7: 'Water 7 Arc',
+  'enies-lobby': 'Enies Lobby Arc',
+  'post-enies': 'Post-Enies Lobby Arc',
+  'thriller-bark': 'Thriller Bark Arc',
+  sabaody: 'Sabaody Archipelago Arc',
+  fishman: 'Fish-Man Island Arc',
+  'punk-hazard': 'Punk Hazard Arc',
+  dressrosa: 'Dressrosa Arc',
+  zou: 'Zou Arc',
+  'whole-cake': 'Whole Cake Island Arc',
+  wano: 'Wano Country Arc',
+  egghead: 'Egghead Arc',
+}
+
+const arcMeta = {
+  gecko: {
+    saga: 'East Blue Saga',
+    summary: 'Usopp and Syrup Village fend off Captain Kuro, the crew earns the Going Merry, and their pirate journey truly begins.',
+    keyEvents: ['Expose Kuro’s plot and defend the village', 'Meet Usopp and Kaya; receive the Going Merry', 'Set course for the Grand Line together'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain', epithet: 'Straw Hat' },
+      { name: 'Usopp', role: 'Sniper', epithet: 'Long-Nose Sharpshooter' },
+      { name: 'Nami', role: 'Navigator', epithet: 'Cat Burglar' },
+      { name: 'Captain Kuro', role: 'Antagonist', epithet: 'Black Cat Pirates Leader' },
+      { name: 'Kaya', role: 'Ally', epithet: 'Village Heiress' },
+    ],
+  },
+  baratie: {
+    saga: 'East Blue Saga',
+    summary: 'At the sea restaurant Baratie, the crew battles Don Krieg’s armada while Sanji leaves the kitchen to pursue the All Blue.',
+    keyEvents: ['Zoro’s duel loss to Dracule Mihawk', 'Luffy and Sanji repel Don Krieg’s assault', 'Sanji joins the crew as their cook'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain', epithet: 'Straw Hat' },
+      { name: 'Sanji', role: 'Cook', epithet: 'Black Leg' },
+      { name: 'Roronoa Zoro', role: 'Swordsman', epithet: 'Pirate Hunter' },
+      { name: 'Don Krieg', role: 'Antagonist', epithet: 'Fleet Admiral' },
+      { name: 'Dracule Mihawk', role: 'Warlord', epithet: 'Hawk-Eye' },
+    ],
+    crewChanges: [{ type: 'join', name: 'Sanji' }],
+  },
+  arlong: {
+    saga: 'East Blue Saga',
+    summary: 'Nami’s past surfaces as Arlong exploits her village; Luffy destroys Arlong Park and claims his first bounty.',
+    keyEvents: ['Nami asks for help and breaks from Arlong', 'Luffy levels Arlong Park and frees Cocoyasi', 'Straw Hats sail with Nami fully onboard'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain', bountyDuringArc: 30000000 },
+      { name: 'Nami', role: 'Navigator' },
+      { name: 'Arlong', role: 'Antagonist', epithet: 'Saw-Shark Fishman' },
+      { name: 'Roronoa Zoro', role: 'Swordsman' },
+      { name: 'Genzo', role: 'Ally', epithet: 'Village Sheriff' },
+    ],
+    bountyUpdates: [{ character: 'Monkey D. Luffy', from: 0, to: 30000000 }],
+  },
+  loguetown: {
+    saga: 'East Blue Saga',
+    summary: 'The crew stocks up in Loguetown, clashes with Smoker, and narrowly escapes execution as Dragon intervenes.',
+    keyEvents: ['Luffy faces public execution at Roger’s platform', 'Zoro gains new swords and tests fate', 'Smoker and Dragon appear; crew reaches the Grand Line'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Roronoa Zoro', role: 'Swordsman' },
+      { name: 'Smoker', role: 'Marine Captain', epithet: 'White Chase' },
+      { name: 'Dragon', role: 'Revolutionary Leader' },
+      { name: 'Tashigi', role: 'Marine Officer' },
+    ],
+  },
+  whiskey: {
+    saga: 'Alabasta Saga',
+    summary: 'At Whisky Peak, Baroque Works ambushes the crew, exposing Vivi as a princess and Baroque Works as the looming threat.',
+    keyEvents: ['Bounty hunter “welcome party” ambush', 'Zoro dismantles Baroque Works agents', 'Vivi reveals Baroque Works’ plot against Alabasta'],
+    highlightCharacters: [
+      { name: 'Nefertari Vivi', role: 'Princess/Agent', epithet: 'Miss Wednesday' },
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Roronoa Zoro', role: 'Swordsman' },
+      { name: 'Igaram', role: 'Guardian', epithet: 'Mr. 8' },
+      { name: 'Mr. 5 & Miss Valentine', role: 'Antagonists' },
+    ],
+  },
+  'little-garden': {
+    saga: 'Alabasta Saga',
+    summary: 'On a prehistoric island, the crew is trapped by Baroque Works while giant warriors duel for honor.',
+    keyEvents: ['Meet giants Dorry and Brogy mid-century duel', 'Mr. 3’s wax trap and candle execution plot', 'Giants aid the escape after defeating Baroque Works agents'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Usopp', role: 'Sniper' },
+      { name: 'Nefertari Vivi', role: 'Princess' },
+      { name: 'Dorry & Brogy', role: 'Allies', epithet: 'Giant Warriors' },
+      { name: 'Mr. 3', role: 'Antagonist', epithet: 'Wax Sculptor' },
+    ],
+  },
+  drum: {
+    saga: 'Alabasta Saga',
+    summary: 'A search for a doctor leads to Drum Island where Chopper chooses the crew after Wapol is defeated.',
+    keyEvents: ['Luffy and Sanji scale Drum Rockies with Nami ill', 'Chopper’s past with Hiriluk and Kureha revealed', 'Wapol is driven out; Chopper joins as doctor'],
+    highlightCharacters: [
+      { name: 'Tony Tony Chopper', role: 'Doctor', epithet: 'Cotton Candy Lover' },
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Dr. Kureha', role: 'Mentor' },
+      { name: 'Wapol', role: 'Antagonist', epithet: 'Tin Tyrant' },
+      { name: 'Sanji', role: 'Cook' },
+    ],
+    crewChanges: [{ type: 'join', name: 'Tony Tony Chopper' }],
+  },
+  alabasta: {
+    saga: 'Alabasta Saga',
+    summary: 'The Straw Hats end Alabasta’s civil war by exposing Baroque Works and defeating Crocodile; Robin quietly joins their voyage.',
+    keyEvents: ['Rainbase prison escape and desert march to Alubarna', 'Straw Hats vs Baroque Works officers across the city', 'Luffy defeats Crocodile and stops the bomb', 'Vivi’s farewell; Robin boards the Going Merry'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain', bountyDuringArc: 100000000 },
+      { name: 'Nefertari Vivi', role: 'Princess' },
+      { name: 'Crocodile', role: 'Antagonist', epithet: 'Warlord' },
+      { name: 'Nico Robin', role: 'Archaeologist', epithet: 'Devil Child' },
+      { name: 'Roronoa Zoro', role: 'Swordsman', bountyDuringArc: 60000000 },
+    ],
+    bountyUpdates: [
+      { character: 'Monkey D. Luffy', from: 30000000, to: 100000000 },
+      { character: 'Roronoa Zoro', from: 0, to: 60000000 },
+    ],
+    crewChanges: [{ type: 'join', name: 'Nico Robin' }],
+  },
+  jaya: {
+    saga: 'Sky Island Saga',
+    summary: 'In Mock Town the crew clashes with Bellamy, meets Blackbeard, and follows Montblanc Cricket’s clue to reach the sky.',
+    keyEvents: ['Humiliated in Mock Town but refuse to fight back', 'Luffy one-punches Bellamy to reclaim the gold', 'Knock Up Stream launch toward Skypiea', 'Foreshadowing encounter with Blackbeard'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Roronoa Zoro', role: 'Swordsman' },
+      { name: 'Marshall D. Teach', role: 'Antagonist', epithet: 'Blackbeard' },
+      { name: 'Bellamy', role: 'Antagonist', epithet: 'Hyena' },
+      { name: 'Montblanc Cricket', role: 'Ally', epithet: 'Salvager' },
+    ],
+  },
+  skypiea: {
+    saga: 'Sky Island Saga',
+    summary: 'On Skypiea the Straw Hats topple Enel’s godhood, ring Shandora’s bell, and prove Jaya’s city of gold was real.',
+    keyEvents: ['Survival game through Upper Yard', 'Luffy defeats Enel on the ark Maxim', 'Golden bell rings to reach Cricket below', 'Shandians and Skypieans reconcile'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Nami', role: 'Navigator' },
+      { name: 'Enel', role: 'Antagonist', epithet: 'God of Skypiea' },
+      { name: 'Wyper', role: 'Warrior', epithet: 'Shandian Avenger' },
+      { name: 'Gan Fall', role: 'Ally', epithet: 'Sky Knight' },
+    ],
+  },
+  'long-ring': {
+    saga: 'Water 7 Saga',
+    summary: 'The Davy Back Fight with Foxy threatens to steal crewmates until Luffy wins; Admiral Aokiji appears to test the crew.',
+    keyEvents: ['Davy Back challenges and Afro Luffy finale', 'Aokiji freezes Robin and duels Luffy', 'First glimpse of an Admiral’s power'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Roronoa Zoro', role: 'Swordsman' },
+      { name: 'Foxy', role: 'Antagonist', epithet: 'Silver Fox' },
+      { name: 'Kuzan', role: 'Admiral', epithet: 'Aokiji' },
+      { name: 'Nico Robin', role: 'Archaeologist' },
+    ],
+  },
+  water7: {
+    saga: 'Water 7 Saga',
+    summary: 'In Water 7 the crew learns the Going Merry is finished, Usopp leaves after a duel, and CP9 kidnaps Robin amid Aqua Laguna.',
+    keyEvents: ['Shipwright verdict on the Going Merry', 'Usopp vs Luffy duel and departure', 'CP9 identities revealed; Robin surrenders', 'Sea train leaves for Enies Lobby'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Usopp', role: 'Sniper', epithet: 'Sniper King (soon)' },
+      { name: 'Franky', role: 'Shipwright', epithet: 'Cyborg' },
+      { name: 'Iceburg', role: 'Mayor/Shipwright' },
+      { name: 'Rob Lucci', role: 'Antagonist', epithet: 'CP9 Assassin' },
+    ],
+    crewChanges: [{ type: 'leave', name: 'Usopp (temporary)' }],
+  },
+  'enies-lobby': {
+    saga: 'Water 7 Saga',
+    summary: 'The Straw Hats storm Enies Lobby to save Robin, burn the World Government flag, and escape a Buster Call with a new ship and bounties.',
+    keyEvents: ['“I want to live” – Robin chooses freedom', 'Straw Hats vs CP9; Luffy’s Gear 2/3 debut vs Lucci', 'World Government flag burned; declaration of war', 'Going Merry funeral and rescue'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain', bountyDuringArc: 300000000 },
+      { name: 'Nico Robin', role: 'Archaeologist', epithet: 'Devil Child' },
+      { name: 'Franky', role: 'Shipwright' },
+      { name: 'Rob Lucci', role: 'Antagonist', epithet: 'Leopard Form' },
+      { name: 'Spandam', role: 'Antagonist', epithet: 'CP9 Commander' },
+    ],
+    bountyUpdates: [
+      { character: 'Monkey D. Luffy', from: 100000000, to: 300000000 },
+      { character: 'Roronoa Zoro', from: 60000000, to: 120000000 },
+      { character: 'Sogeking (Usopp)', from: 0, to: 30000000 },
+    ],
+    crewChanges: [
+      { type: 'join', name: 'Franky' },
+      { type: 'join', name: 'Nico Robin (affirmed)' },
+      { type: 'join', name: 'Usopp (returns)' },
+    ],
+  },
+  'post-enies': {
+    saga: 'Water 7 Saga',
+    summary: 'On Water 7 the crew launches the Thousand Sunny, reconciles with Usopp, and departs with new bounties and a shipwright.',
+    keyEvents: ['Franky builds the Thousand Sunny', 'Usopp apologizes and rejoins', 'Departure from Water 7 with the new ship'],
+    highlightCharacters: [
+      { name: 'Franky', role: 'Shipwright' },
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Usopp', role: 'Sniper' },
+      { name: 'Nami', role: 'Navigator' },
+      { name: 'Iceburg', role: 'Shipwright' },
+    ],
+    shipModel: 'sunny',
+  },
+  'thriller-bark': {
+    saga: 'Thriller Bark Saga',
+    summary: 'In the Florian Triangle, Moria steals shadows; Straw Hats reclaim them, Zoro endures Kuma’s pain, and Brook joins.',
+    keyEvents: ['Shadows stolen; Nightmare Luffy vs Oars', 'Zoro takes Luffy’s pain from Kuma (“Nothing happened”)', 'Brook joins as musician and keeps his shadow'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Roronoa Zoro', role: 'Swordsman' },
+      { name: 'Brook', role: 'Musician', epithet: 'Soul King' },
+      { name: 'Gecko Moria', role: 'Antagonist', epithet: 'Warlord' },
+      { name: 'Bartholomew Kuma', role: 'Warlord' },
+    ],
+    crewChanges: [{ type: 'join', name: 'Brook' }],
+    shipModel: 'sunny',
+  },
+  sabaody: {
+    saga: 'Summit War Saga',
+    summary: 'At Sabaody the Supernovas collide, Luffy punches a Celestial Dragon, and Kuma scatters the crew under Kizaru’s assault.',
+    keyEvents: ['Auction house chaos after the Celestial Dragon punch', 'Admiral Kizaru and Pacifistas overwhelm the rookies', 'Rayleigh introduces coating; Kuma sends crew across the world'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Silvers Rayleigh', role: 'Ally', epithet: 'Dark King' },
+      { name: 'Borsalino', role: 'Admiral', epithet: 'Kizaru' },
+      { name: 'Trafalgar Law', role: 'Captain', epithet: 'Surgeon of Death' },
+      { name: 'Eustass Kid', role: 'Captain' },
+    ],
+    shipModel: 'sunny',
+  },
+  fishman: {
+    saga: 'Fish-Man Island Saga',
+    summary: 'After the timeskip, the crew stops Hody’s coup, saves Neptune’s family, and declares Fish-Man Island under Straw Hat protection.',
+    keyEvents: ['Ryugu Palace takeover and Noah’s descent', 'Luffy vs Hody on the deep-sea plaza', 'Jinbe shares blood and pledges friendship'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain', bountyDuringArc: 400000000 },
+      { name: 'Jinbe', role: 'Helmsman', epithet: 'Knight of the Sea' },
+      { name: 'Hody Jones', role: 'Antagonist' },
+      { name: 'Shirahoshi', role: 'Ally', epithet: 'Poseidon' },
+      { name: 'King Neptune', role: 'Ally' },
+    ],
+    shipModel: 'sunny',
+  },
+  'punk-hazard': {
+    saga: 'Dressrosa Saga',
+    summary: 'On Punk Hazard, Luffy allies with Law, rescues children, and captures Caesar, provoking Doflamingo.',
+    keyEvents: ['G-5 Marines entangled in the frozen/burning island', 'Law proposes alliance to topple Kaido', 'Caesar Clown is defeated and captured'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Trafalgar Law', role: 'Captain', epithet: 'Warlord of the Sea' },
+      { name: 'Caesar Clown', role: 'Antagonist', epithet: 'Scientist' },
+      { name: 'Smoker', role: 'Vice Admiral', epithet: 'White Chase' },
+      { name: 'Tashigi', role: 'Marine Captain' },
+    ],
+    shipModel: 'sunny',
+  },
+  dressrosa: {
+    saga: 'Dressrosa Saga',
+    summary: 'In Dressrosa the alliance exposes Doflamingo’s tyranny, frees the toys, and Luffy’s Gear Fourth ends the Birdcage; the Grand Fleet is born.',
+    keyEvents: ['Colosseum battles and Sabo’s return', 'Operation SOP frees the toys and citizens', 'Luffy Gear Fourth defeats Doflamingo; Birdcage drops', 'Straw Hat Grand Fleet swears loyalty'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain', bountyDuringArc: 500000000 },
+      { name: 'Trafalgar Law', role: 'Captain' },
+      { name: 'Donquixote Doflamingo', role: 'Antagonist', epithet: 'Heavenly Yaksha' },
+      { name: 'Sabo', role: 'Chief of Staff', epithet: 'Revolutionary' },
+      { name: 'Usopp', role: 'Sniper', epithet: 'God Usopp' },
+    ],
+    bountyUpdates: [
+      { character: 'Monkey D. Luffy', from: 400000000, to: 500000000 },
+      { character: 'Roronoa Zoro', from: 120000000, to: 320000000 },
+      { character: 'Usopp', from: 30000000, to: 200000000 },
+    ],
+    shipModel: 'sunny',
+  },
+  zou: {
+    saga: 'Whole Cake Island Saga',
+    summary: 'On the back of Zunesha, the crew meets the Minks, learns of the Road Poneglyphs, and splits to recover Sanji from Big Mom.',
+    keyEvents: ['Jack’s raid repelled by Zunesha’s strike', 'Raizo’s protection earns the Minks’ trust', 'Sanji’s forced marriage revealed; rescue team forms'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Nami', role: 'Navigator' },
+      { name: 'Inuarashi', role: 'Mink Ruler' },
+      { name: 'Nekomamushi', role: 'Mink Ruler' },
+      { name: 'Jack', role: 'Antagonist', epithet: 'Drought' },
+    ],
+    crewChanges: [{ type: 'leave', name: 'Sanji (to Whole Cake Island)' }],
+    shipModel: 'sunny',
+  },
+  'whole-cake': {
+    saga: 'Whole Cake Island Saga',
+    summary: 'The crew infiltrates Big Mom’s territory to retrieve Sanji, survive a failed tea party assassination, and Luffy proves himself against Katakuri.',
+    keyEvents: ['Tea party assassination plot with Capone Bege', 'Brook copies Big Mom’s poneglyphs', 'Luffy vs Katakuri in the Mirror World', 'Sanji returns and the crew escapes Totto Land'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain', bountyDuringArc: 1500000000 },
+      { name: 'Sanji', role: 'Cook', epithet: 'Black Leg', bountyDuringArc: 330000000 },
+      { name: 'Charlotte Linlin', role: 'Antagonist', epithet: 'Big Mom' },
+      { name: 'Charlotte Katakuri', role: 'Antagonist', epithet: 'Sweet Commander' },
+      { name: 'Brook', role: 'Musician' },
+    ],
+    bountyUpdates: [
+      { character: 'Monkey D. Luffy', from: 500000000, to: 1500000000 },
+      { character: 'Vinsmoke Sanji', from: 177000000, to: 330000000 },
+    ],
+    crewChanges: [{ type: 'join', name: 'Sanji (rejoins)' }],
+    shipModel: 'sunny',
+  },
+  wano: {
+    saga: 'Wano Country Saga',
+    summary: 'Allies storm Onigashima, defeat Kaido and Big Mom, liberate Wano, and Luffy awakens Gear Fifth to emerge as a Yonko.',
+    keyEvents: ['Oden flashback and samurai alliance', 'Raid on Onigashima and rooftop supernova fight', 'Luffy Gear Fifth vs Kaido; Big Mom falls', 'Momonosuke ascends; new bounties crown Luffy, Zoro, Sanji'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain', bountyDuringArc: 3000000000 },
+      { name: 'Roronoa Zoro', role: 'Swordsman', bountyDuringArc: 1111000000 },
+      { name: 'Kaido', role: 'Antagonist', epithet: 'Beast Emperor' },
+      { name: 'Yamato', role: 'Ally', epithet: 'Oden Aspirant' },
+      { name: 'Kozuki Momonosuke', role: 'Shogun' },
+    ],
+    bountyUpdates: [
+      { character: 'Monkey D. Luffy', from: 1500000000, to: 3000000000 },
+      { character: 'Roronoa Zoro', from: 320000000, to: 1111000000 },
+      { character: 'Vinsmoke Sanji', from: 330000000, to: 1032000000 },
+    ],
+    crewChanges: [{ type: 'join', name: 'Jinbe' }],
+    shipModel: 'sunny',
+  },
+  egghead: {
+    saga: 'Final Saga',
+    summary: 'On Egghead, the crew meets Vegapunk, faces rebelling Seraphim and CP0, while a Navy onslaught led by Kizaru and Saturn closes in.',
+    keyEvents: ['Tour of Punk Records and the six Vegapunks', 'Seraphim and CP0 betrayal inside the lab', 'Kizaru and Saturn arrive; evacuation scramble', 'Kuma and Bonney backstory revealed'],
+    highlightCharacters: [
+      { name: 'Monkey D. Luffy', role: 'Captain' },
+      { name: 'Dr. Vegapunk', role: 'Scientist', epithet: 'Genius of the Century' },
+      { name: 'Jewelry Bonney', role: 'Captain' },
+      { name: 'Borsalino', role: 'Admiral', epithet: 'Kizaru' },
+      { name: 'Rob Lucci', role: 'CP0 Agent' },
+    ],
+    shipModel: 'sunny',
+  },
+}
+
+const metricsMap = {
+  gecko: { narrativeWeight: 0.35, crewRisk: 0.25, worldImpact: 'Local' },
+  baratie: { narrativeWeight: 0.45, crewRisk: 0.35, worldImpact: 'Local' },
+  arlong: { narrativeWeight: 0.6, crewRisk: 0.55, worldImpact: 'Regional' },
+  loguetown: { narrativeWeight: 0.5, crewRisk: 0.4, worldImpact: 'Regional' },
+  whiskey: { narrativeWeight: 0.5, crewRisk: 0.45, worldImpact: 'Regional' },
+  'little-garden': { narrativeWeight: 0.48, crewRisk: 0.4, worldImpact: 'Regional' },
+  drum: { narrativeWeight: 0.58, crewRisk: 0.5, worldImpact: 'Regional' },
+  alabasta: { narrativeWeight: 0.82, crewRisk: 0.75, worldImpact: 'Global' },
+  jaya: { narrativeWeight: 0.55, crewRisk: 0.4, worldImpact: 'Regional' },
+  skypiea: { narrativeWeight: 0.78, crewRisk: 0.65, worldImpact: 'Global' },
+  'long-ring': { narrativeWeight: 0.42, crewRisk: 0.35, worldImpact: 'Local' },
+  water7: { narrativeWeight: 0.75, crewRisk: 0.7, worldImpact: 'Regional' },
+  'enies-lobby': { narrativeWeight: 0.9, crewRisk: 0.85, worldImpact: 'Global' },
+  'post-enies': { narrativeWeight: 0.5, crewRisk: 0.25, worldImpact: 'Local' },
+  'thriller-bark': { narrativeWeight: 0.65, crewRisk: 0.6, worldImpact: 'Regional' },
+  sabaody: { narrativeWeight: 0.82, crewRisk: 0.88, worldImpact: 'Global' },
+  fishman: { narrativeWeight: 0.62, crewRisk: 0.55, worldImpact: 'Regional' },
+  'punk-hazard': { narrativeWeight: 0.65, crewRisk: 0.6, worldImpact: 'Regional' },
+  dressrosa: { narrativeWeight: 0.88, crewRisk: 0.85, worldImpact: 'Global' },
+  zou: { narrativeWeight: 0.58, crewRisk: 0.45, worldImpact: 'Regional' },
+  'whole-cake': { narrativeWeight: 0.86, crewRisk: 0.8, worldImpact: 'Global' },
+  wano: { narrativeWeight: 0.95, crewRisk: 0.9, worldImpact: 'Global' },
+  egghead: { narrativeWeight: 0.82, crewRisk: 0.82, worldImpact: 'Global' },
+}
+
+const groupedByArc = episodes.reduce((acc, episode) => {
+  const key = normalize(episode.arc)
+  const entry = acc.get(key) ?? {
+    startEpisode: Number.POSITIVE_INFINITY,
+    endEpisode: Number.NEGATIVE_INFINITY,
+    count: 0,
+  }
+  entry.startEpisode = Math.min(entry.startEpisode, episode.episode)
+  entry.endEpisode = Math.max(entry.endEpisode, episode.episode)
+  entry.count += 1
+  acc.set(key, entry)
+  return acc
+}, new Map())
+
+export const arcData = arcs.map((arc) => {
+  const meta = arcMeta[arc.id] ?? {}
+  const arcName = arcNameMap[arc.id] ?? arc.label
+  const group = groupedByArc.get(normalize(arcName))
+  const metrics = metricsMap[arc.id] ?? {}
+
+  const startEpisode = group?.startEpisode ?? null
+  const endEpisode = group?.endEpisode ?? null
+  const episodeCount = group?.count ?? (startEpisode && endEpisode ? endEpisode - startEpisode + 1 : 0)
+
+  return {
+    id: arc.id,
+    label: arc.label,
+    saga: meta.saga ?? 'Grand Line',
+    startEpisode,
+    endEpisode,
+    episodeCount,
+    summary: meta.summary ?? '',
+    keyEvents: meta.keyEvents ?? [],
+    highlightCharacters: meta.highlightCharacters ?? [],
+    bountyUpdates: meta.bountyUpdates,
+    crewChanges: meta.crewChanges,
+    narrativeWeight: metrics.narrativeWeight ?? 0.5,
+    crewRisk: metrics.crewRisk ?? 0.5,
+    worldImpact: metrics.worldImpact ?? 'Regional',
+    shipModel: meta.shipModel ?? 'merry',
+    position: arc.position,
+  }
+})
+
+export default arcData

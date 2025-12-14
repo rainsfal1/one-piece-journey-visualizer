@@ -14,12 +14,18 @@
   box-sizing: border-box;
 }
 
+html, body, #root {
+  height: 100%;
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100%;
   background-color: #0b1220;
+  /* Prevent the page from scrolling; the app should manage internal scrolling */
+  overflow: hidden;
 }
 
 #root {
-  min-height: 100vh;
+  height: 100%;
 }

@@ -7,6 +7,7 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import { arcs } from '../data/arcs'
 import { arcData } from '../data/arcData'
 import IslandList from './IslandList'
+import Dashboard from './Dashboard'
 import RoutePath from './RoutePath'
 import WorldGlobe from './WorldGlobe'
 import MovingShip from './MovingShip'
@@ -102,6 +103,7 @@ function SceneContent({
 
 export function Scene() {
   const [currentArc, setCurrentArc] = useState(null)
+  const [dashboardOpen, setDashboardOpen] = useState(false)
   const [followShip, setFollowShip] = useState(false)
   const [mode, setMode] = useState('manual') // manual | autoplay
   const [isPlaying, setIsPlaying] = useState(false)
@@ -252,6 +254,9 @@ export function Scene() {
     animateCameraToArc(arc)
   }
 
+  const openDashboard = () => setDashboardOpen(true)
+  const closeDashboard = () => setDashboardOpen(false)
+
   const closeModalAndResetControls = () => {
     setIsModalOpen(false)
     setSelectedArcForModal(null)
@@ -291,6 +296,13 @@ export function Scene() {
   return (
     <div className="scene-wrapper">
       <IslandList arcs={arcData} onSelect={handleIslandSelect} />
+      <button type="button" className="dashboard-button" onClick={openDashboard} aria-label="Open dashboard">
+        Dashboard
+      </button>
+      <Dashboard arcs={arcData} open={dashboardOpen} onClose={closeDashboard} onSelect={(a) => {
+        handleIslandSelect(a)
+        closeDashboard()
+      }} />
       <Canvas
         shadows
         camera={{

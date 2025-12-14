@@ -6,6 +6,7 @@ import { FiZoomIn, FiZoomOut, FiRefreshCw, FiPlay, FiPause } from 'react-icons/f
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import { arcs } from '../data/arcs'
 import { arcData } from '../data/arcData'
+import IslandList from './IslandList'
 import RoutePath from './RoutePath'
 import WorldGlobe from './WorldGlobe'
 import MovingShip from './MovingShip'
@@ -110,6 +111,7 @@ export function Scene() {
   const [followOffsetScale, setFollowOffsetScale] = useState(1)
   const controlsRef = useRef(null)
   const cameraRef = useRef(null)
+  const animFrameRef = useRef(null)
 
   const pathPoints = useMemo(() => smoothPathPoints, [])
 
@@ -144,6 +146,88 @@ export function Scene() {
 
   const arcProgressMap = useMemo(() => buildArcProgressMap(arcData), [])
 
+  const animateCameraToArc = useCallback(
+    (arc) => {
+      if (!arc || !cameraRef.current) return
+
+      const target = new THREE.Vector3(arc.position.x, arc.position.y, arc.position.z).normalize()
+      const surfacePos = target.clone().multiplyScalar(5.05)
+
+      const startCamPos = cameraRef.current.position.clone()
+      const startTarget = controlsRef.current ? controlsRef.current.target.clone() : new THREE.Vector3(0, 0, 0)
+
+      const startDistance = startCamPos.length()
+      const rotatedPos = target.clone().multiplyScalar(startDistance)
+      const zoomDistance = Math.min(Math.max(6, startDistance * 0.6), startDistance - 1)
+      const zoomPos = target.clone().multiplyScalar(zoomDistance)
+
+      const rotateDuration = 900
+      const zoomDuration = 700
+
+      let phase = 0
+      let phaseStart = null
+      let sPos = startCamPos.clone()
+      let sTarget = startTarget.clone()
+
+      if (controlsRef.current) controlsRef.current.enabled = false
+
+      const step = (time) => {
+        if (!phaseStart) phaseStart = time
+        const elapsed = time - phaseStart
+
+        if (phase === 0) {
+          const t = Math.min(1, elapsed / rotateDuration)
+          const eased = t * t * (3 - 2 * t)
+          cameraRef.current.position.lerpVectors(sPos, rotatedPos, eased)
+          if (controlsRef.current) {
+            controlsRef.current.target.lerpVectors(sTarget, surfacePos, eased)
+            controlsRef.current.update()
+          }
+
+          if (t < 1) {
+            animFrameRef.current = requestAnimationFrame(step)
+            return
+          }
+
+          // switch to zoom phase
+          phase = 1
+          phaseStart = null
+          sPos = cameraRef.current.position.clone()
+          sTarget = controlsRef.current ? controlsRef.current.target.clone() : surfacePos.clone()
+          animFrameRef.current = requestAnimationFrame(step)
+          return
+        }
+
+        // zoom phase
+        const t2 = Math.min(1, elapsed / zoomDuration)
+        const eased2 = t2 * t2 * (3 - 2 * t2)
+        cameraRef.current.position.lerpVectors(sPos, zoomPos, eased2)
+        if (controlsRef.current) {
+          controlsRef.current.target.lerpVectors(sTarget, surfacePos, eased2)
+          controlsRef.current.update()
+        }
+
+        if (t2 < 1) {
+          animFrameRef.current = requestAnimationFrame(step)
+        } else {
+          if (controlsRef.current) controlsRef.current.enabled = true
+          animFrameRef.current = null
+        }
+      }
+
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+      animFrameRef.current = requestAnimationFrame(step)
+    },
+    [cameraRef, controlsRef],
+  )
+
+  // ensure we cancel any running animation when unmounting
+  useEffect(() => {
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+    }
+  }, [])
+
   const handleMarkerClick = (arc) => {
     setIsPlaying(false)
     setMode('manual')
@@ -153,6 +237,30 @@ export function Scene() {
     setCurrentArc(arc)
     setSelectedArcForModal(arc)
     setIsModalOpen(true)
+  }
+
+  const handleIslandSelect = (arc) => {
+    if (!arc) return
+    setIsPlaying(false)
+    setMode('manual')
+    setFollowShip(false)
+    const val = arcProgressMap[arc.id] ?? 0
+    setProgress(val)
+    setCurrentArc(arc)
+    setSelectedArcForModal(arc)
+    setIsModalOpen(true)
+    animateCameraToArc(arc)
+  }
+
+  const closeModalAndResetControls = () => {
+    setIsModalOpen(false)
+    setSelectedArcForModal(null)
+    // reset orbit controls target back to globe center so dragging works as initial
+    if (controlsRef.current) {
+      controlsRef.current.target.set(0, 0, 0)
+      controlsRef.current.update()
+      controlsRef.current.enabled = true
+    }
   }
 
   const handleResetCamera = () => {
@@ -182,6 +290,7 @@ export function Scene() {
 
   return (
     <div className="scene-wrapper">
+      <IslandList arcs={arcData} onSelect={handleIslandSelect} />
       <Canvas
         shadows
         camera={{
@@ -264,7 +373,7 @@ export function Scene() {
       </div>
 
       {mode === 'manual' && isModalOpen && selectedArcForModal ? (
-        <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}>
+        <div className="modal-backdrop" onClick={closeModalAndResetControls}>
           <div
             className="arc-modal"
             onClick={(e) => {
@@ -276,7 +385,7 @@ export function Scene() {
                 <div className="modal-title">{selectedArcForModal.label}</div>
                 <div className="modal-saga">{selectedArcForModal.saga}</div>
               </div>
-              <button type="button" className="modal-close" onClick={() => setIsModalOpen(false)}>
+              <button type="button" className="modal-close" onClick={closeModalAndResetControls}>
                 ✕
               </button>
             </div>

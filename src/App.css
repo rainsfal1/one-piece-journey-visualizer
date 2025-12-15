@@ -399,6 +399,90 @@ canvas {
   margin-bottom: 4px;
 }
 
+/* Journey toast */
+.journey-toast-container {
+  position: absolute;
+  left: 16px;
+  top: 120px; /* moved lower to avoid covering islands/dashboard */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 80;
+  pointer-events: none;
+}
+.journey-toast {
+  pointer-events: auto;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: rgba(8, 18, 30, 0.95);
+  color: #eaf4ff;
+  padding: 15px 18px; /* reduced to half */
+  border-radius: 12px;
+  min-width: 330px; /* reduced to half */
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.05);
+  transform-origin: top left;
+}
+.journey-avatar {
+  width: 66px; /* half of 132 */
+  height: 66px;
+  border-radius: 10px;
+  background: linear-gradient(135deg,#2e86ff,#7bd0ff);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 24px;
+  color: #04263a;
+}
+.journey-name { font-weight: 800; font-size: 20px }
+.journey-sub { font-size: 18px; color: #bcd9ff }
+
+/* pop-in animation */
+@keyframes toast-pop-in {
+  0% { transform: translateY(-6px) scale(0.88); opacity: 0 }
+  45% { transform: translateY(0) scale(1.03); opacity: 1 }
+  100% { transform: translateY(0) scale(1); opacity: 1 }
+}
+
+.journey-toast {
+  animation: toast-pop-in 320ms cubic-bezier(.22,.9,.28,1) both;
+  max-width: min(80vw, 420px); /* responsive cap so large images don't cover screen */
+}
+
+
+.journey-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* make avatar + toast scale dynamically but keep a safe maximum */
+.journey-avatar {
+  width: clamp(64px, 16vw, 160px);
+  height: clamp(64px, 16vw, 160px);
+  margin-left: 8px;
+  background: rgba(0,0,0,0.06);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+/* stacked layout: text on top, image on bottom - switch to column layout */
+.journey-toast { flex-direction: column; align-items: center }
+.journey-body { text-align: center }
+.journey-avatar { margin-left: 0; margin-top: 10px }
+
+/* smaller screens: reduce toast size to avoid overlap */
+@media (max-width: 720px) {
+  .journey-toast { min-width: 240px; padding: 12px 14px }
+  .journey-name { font-size: 16px }
+  .journey-sub { font-size: 13px }
+  .journey-avatar { width: 56px; height: 56px }
+}
+
+
 .arc-info-panel .arc-list {
   margin: 0;
   padding-left: 16px;

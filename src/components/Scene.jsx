@@ -11,6 +11,8 @@ import Dashboard from './Dashboard'
 import RoutePath from './RoutePath'
 import WorldGlobe from './WorldGlobe'
 import MovingShip from './MovingShip'
+import JourneyToast from './JourneyToast'
+import crewJoins from '../data/crewJoins'
 import { buildPathFromArcs } from '../utils/pathUtils'
 import { pathPoints as smoothPathPoints, buildArcProgressMap } from '../utils/pathBuilder'
 
@@ -25,6 +27,7 @@ function SceneContent({
   mode,
   onMarkerClick,
   followOffsetScale,
+  shipSpeed,
 }) {
   const { gl } = useThree()
 
@@ -87,6 +90,7 @@ function SceneContent({
           controlsRef={controlsRef}
           isPlaying={isPlaying}
           progress={progress}
+          speed={shipSpeed}
           onProgressChange={onProgressChange}
           followOffsetScale={followOffsetScale}
         />
@@ -116,6 +120,31 @@ export function Scene() {
   const animFrameRef = useRef(null)
 
   const pathPoints = useMemo(() => smoothPathPoints, [])
+
+  // ship speed handling for join popups
+  // Reduced base speed so autoplay progression is noticeably slower
+  // (was 0.03; lower to 0.01 so arc join popups don't trigger too early)
+  const BASE_SHIP_SPEED = 0.01
+  const [shipSpeed, setShipSpeed] = useState(BASE_SHIP_SPEED)
+  const speedAnimRef = useRef(null)
+  const triggeredRef = useRef({})
+  const prevProgressRef = useRef(progress)
+  const pendingRef = useRef([])
+
+  const animateSpeedTo = useCallback((target, duration = 300) => {
+    if (speedAnimRef.current) cancelAnimationFrame(speedAnimRef.current)
+    const start = performance.now()
+    const from = shipSpeed
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = t * t * (3 - 2 * t)
+      const val = from + (target - from) * eased
+      setShipSpeed(val)
+      if (t < 1) speedAnimRef.current = requestAnimationFrame(step)
+      else speedAnimRef.current = null
+    }
+    speedAnimRef.current = requestAnimationFrame(step)
+  }, [shipSpeed])
 
   const handleProgressChange = useCallback(
     (value) => {
@@ -253,6 +282,25 @@ export function Scene() {
         setMode('autoplay')
         setIsPlaying(true)
         setFollowShip(true)
+        // ensure Luffy popup appears immediately at journey start if not already triggered
+        try {
+          const luffyJoin = crewJoins.find((c) => c.id === 'luffy')
+          if (luffyJoin && !triggeredRef.current[luffyJoin.id]) {
+            triggeredRef.current[luffyJoin.id] = true
+            if (toasts.length === 0) {
+              setToasts([luffyJoin])
+              animateSpeedTo(Math.min(BASE_SHIP_SPEED * 0.18, BASE_SHIP_SPEED * 0.25), 180)
+              setTimeout(() => {
+                setToasts([])
+                animateSpeedTo(BASE_SHIP_SPEED, 400)
+              }, POPUP_MS)
+            } else {
+              pendingRef.current.push(luffyJoin)
+            }
+          }
+        } catch (e) {
+          // defensive: ignore errors
+        }
       })()
     } else {
       // Stop playback immediately, reset follow mode, then return camera to neutral centered on globe
@@ -534,6 +582,97 @@ export function Scene() {
     setIsModalOpen(true)
   }
 
+  // popups for crew joining while autoplay is active
+  const [toasts, setToasts] = useState([])
+  const POPUP_MS = 3000
+
+  useEffect(() => {
+    if (!isPlaying) {
+      prevProgressRef.current = progress
+      return
+    }
+
+    for (const join of crewJoins) {
+      if (triggeredRef.current[join.id]) continue
+      const prev = prevProgressRef.current
+      const cur = progress
+
+      // determine a more accurate target progress by mapping the join's episode
+      // to the arc that contains that episode, falling back to the episode-normalized value
+      let targetProgress = join.progress
+      try {
+        const arcForEpisode = arcData.find((a) => join.episode >= (a.startEpisode ?? 0) && join.episode <= (a.endEpisode ?? Infinity))
+        if (arcForEpisode && arcProgressMap && arcProgressMap[arcForEpisode.id] != null) {
+          targetProgress = arcProgressMap[arcForEpisode.id]
+        }
+      } catch (e) {
+        // fallback to join.progress
+      }
+
+      // detect crossing of the threshold — trigger slightly earlier so the popup
+      // appears before the ship reaches the island. Compute a lead based on
+      // the base ship speed and popup duration.
+      const proximityWindow = 0.01
+      const leadSeconds = Math.min(3.0, (POPUP_MS / 1000) * 0.6) // seconds to lead by (caps at 3s)
+      const leadProgress = Math.max(0, BASE_SHIP_SPEED * leadSeconds)
+      const triggerProgress = Math.max(0, targetProgress - leadProgress)
+
+      // special-case: ensure Luffy (episode 1 / progress 0) shows when journey starts
+      const isLuffy = join.episode === 1 || join.id === 'luffy'
+      const crossed = isLuffy
+        ? (cur <= targetProgress + proximityWindow || (prev < targetProgress && cur >= targetProgress))
+        : ((prev < triggerProgress && cur >= triggerProgress) || (Math.abs(cur - targetProgress) <= proximityWindow))
+      if (!crossed) continue
+
+      // mark seen
+      triggeredRef.current[join.id] = true
+
+      // if a toast is active, queue this join
+      if (toasts.length > 0) {
+        pendingRef.current.push(join)
+        continue
+      }
+
+      // compute slowdown so the next untriggered join happens after the popup
+      const timeWindow = (POPUP_MS + 400) / 1000
+      let targetSlow = BASE_SHIP_SPEED * 0.18
+      const nextJoin = crewJoins.find((j) => !triggeredRef.current[j.id] && j.progress > join.progress)
+      if (nextJoin) {
+        const delta = Math.max(0.0001, nextJoin.progress - join.progress)
+        const suggested = (delta / timeWindow) * 0.9
+        targetSlow = Math.min(targetSlow, Math.max(suggested, BASE_SHIP_SPEED * 0.005))
+      }
+
+      setToasts([join])
+      animateSpeedTo(targetSlow, 220)
+
+      setTimeout(() => {
+        setToasts([])
+        const next = pendingRef.current.shift()
+        if (next) {
+          // compute next's slowdown relative to its following join
+          const laterJoin = crewJoins.find((j) => !triggeredRef.current[j.id] && j.progress > next.progress)
+          let nextTargetSlow = BASE_SHIP_SPEED * 0.18
+          if (laterJoin) {
+            const delta2 = Math.max(0.0001, laterJoin.progress - next.progress)
+            const suggested2 = (delta2 / timeWindow) * 0.9
+            nextTargetSlow = Math.min(nextTargetSlow, Math.max(suggested2, BASE_SHIP_SPEED * 0.005))
+          }
+          setToasts([next])
+          animateSpeedTo(nextTargetSlow, 220)
+          setTimeout(() => {
+            setToasts([])
+            animateSpeedTo(BASE_SHIP_SPEED, 400)
+          }, POPUP_MS)
+        } else {
+          animateSpeedTo(BASE_SHIP_SPEED, 400)
+        }
+      }, POPUP_MS)
+    }
+
+    prevProgressRef.current = progress
+  }, [isPlaying, progress, animateSpeedTo, toasts.length])
+
   const handleIslandSelect = (arc) => {
     if (!arc) return
     setIsPlaying(false)
@@ -651,8 +790,16 @@ export function Scene() {
           mode={mode}
           onMarkerClick={handleMarkerClick}
           followOffsetScale={followOffsetScale}
+          shipSpeed={shipSpeed}
         />
       </Canvas>
+
+      {/* popup toasts */}
+      <div className="journey-toast-container">
+        {toasts.map((t) => (
+          <JourneyToast key={t.id} item={t} />
+        ))}
+      </div>
 
       {currentArc ? (
         <div

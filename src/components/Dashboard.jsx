@@ -199,29 +199,11 @@ export default function Dashboard({ arcs = [], open = false, onClose, onSelect }
             </div>
           </div>
 
+          {/* Right column removed to declutter — island list moved to IslandList toggle on the main scene. */}
           <div className="dashboard-right">
-            <div className="island-search-row">
-              <input className="island-search" placeholder="Search islands..." value={query} onChange={(e) => setQuery(e.target.value)} />
-            </div>
-
-            <div className="island-list-scroll">
-              {filtered.map((a) => (
-                <div key={a.id} className="island-list-item">
-                  <div className="island-label">{a.label}</div>
-                  <div className="island-actions">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedArc(a)
-                        onSelect?.(a)
-                      }}
-                    >
-                      Focus
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {filtered.length === 0 ? <div className="empty">No islands</div> : null}
+            <div style={{ padding: 8 }}>
+              <div className="dashboard-sub">Island list removed — use the Island toggle or click globe markers to focus arcs.</div>
+              <div style={{ marginTop: 12 }} className="dashboard-instructions">Tip: Use the popup arrows on arc details to navigate between islands without closing the modal.</div>
             </div>
           </div>
         </div>

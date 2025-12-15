@@ -123,16 +123,146 @@ export function Scene() {
     },
     [setProgress],
   )
+  
+  const animateZoomInForPlay = useCallback(
+    (atProgress = progress) => {
+      return new Promise((resolve) => {
+        if (!cameraRef.current || !pathPoints || pathPoints.length < 2) {
+          resolve()
+          return
+        }
+
+        const curve = new THREE.CatmullRomCurve3(pathPoints, false, 'centripetal')
+        const segments = Math.max(pathPoints.length * 8, pathPoints.length)
+        const frames = curve.computeFrenetFrames(segments, false)
+        const shipPointRaw = curve.getPointAt(atProgress)
+        const shipPos = shipPointRaw.clone().normalize().multiplyScalar(5.05)
+
+        const frameIndex = Math.min(Math.floor(atProgress * segments), segments - 1)
+        const tangent = frames.tangents[frameIndex].clone().normalize()
+        const globeUp = shipPos.clone().normalize()
+        const cameraUp = cameraRef.current.up.clone().normalize()
+        const blend = 0.35
+        const blendedUp = globeUp.clone().multiplyScalar(1 - blend).add(cameraUp.clone().multiplyScalar(blend)).normalize()
+
+        const right = new THREE.Vector3().crossVectors(blendedUp, tangent).normalize()
+        const forward = new THREE.Vector3().crossVectors(right, blendedUp).normalize()
+        const mat = new THREE.Matrix4().makeBasis(right, blendedUp, forward)
+        const shipQuat = new THREE.Quaternion().setFromRotationMatrix(mat)
+
+        // compute a closer camera position (zoom in by 2x relative to base follow offset)
+        const baseOffset = new THREE.Vector3(2, 1.5, 2)
+        const followOffset = baseOffset.applyQuaternion(shipQuat)
+        const currentCam = cameraRef.current.position.clone()
+        const targetCam = shipPos.clone().add(followOffset.multiplyScalar(0.5))
+
+        const startCamPos = currentCam
+        const startTarget = controlsRef.current ? controlsRef.current.target.clone() : cameraRef.current.getWorldDirection(new THREE.Vector3())
+
+        const duration = 400
+        let start = null
+
+        if (controlsRef.current) controlsRef.current.enabled = false
+
+        const step = (time) => {
+          if (!start) start = time
+          const t = Math.min(1, (time - start) / duration)
+          const eased = t * t * (3 - 2 * t)
+          cameraRef.current.position.lerpVectors(startCamPos, targetCam, eased)
+          if (controlsRef.current) {
+            controlsRef.current.target.lerpVectors(startTarget, shipPos, eased)
+            controlsRef.current.update()
+          }
+
+          if (t < 1) {
+            animFrameRef.current = requestAnimationFrame(step)
+          } else {
+            // snap to prevent follow jump
+            cameraRef.current.position.copy(targetCam)
+            if (controlsRef.current) {
+              // After zooming out, reset the orbit-controls target to the globe center
+              // so further rotations pivot around the globe instead of the ship.
+              controlsRef.current.target.set(0, 0, 0)
+              controlsRef.current.update()
+              controlsRef.current.enabled = true
+            }
+            animFrameRef.current = null
+            resolve()
+          }
+        }
+
+        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+        animFrameRef.current = requestAnimationFrame(step)
+      })
+    },
+    [cameraRef, controlsRef, pathPoints, progress],
+  )
+
+  const animateCameraToNeutralRestore = useCallback(() => {
+    return new Promise((resolve) => {
+      if (!cameraRef.current) {
+        resolve()
+        return
+      }
+
+      const neutralPos = new THREE.Vector3(8, 8, 12)
+      const neutralTarget = new THREE.Vector3(0, 0, 0)
+
+      const startCamPos = cameraRef.current.position.clone()
+      const startTarget = controlsRef.current ? controlsRef.current.target.clone() : cameraRef.current.getWorldDirection(new THREE.Vector3())
+
+      const duration = 900
+      let start = null
+
+      if (controlsRef.current) controlsRef.current.enabled = false
+
+      const step = (time) => {
+        if (!start) start = time
+        const t = Math.min(1, (time - start) / duration)
+        const eased = t * t * (3 - 2 * t)
+        cameraRef.current.position.lerpVectors(startCamPos, neutralPos, eased)
+        if (controlsRef.current) {
+          controlsRef.current.target.lerpVectors(startTarget, neutralTarget, eased)
+          controlsRef.current.update()
+        }
+
+        if (t < 1) {
+          animFrameRef.current = requestAnimationFrame(step)
+        } else {
+          if (controlsRef.current) {
+            controlsRef.current.target.copy(neutralTarget)
+            controlsRef.current.update()
+            controlsRef.current.enabled = true
+          }
+          animFrameRef.current = null
+          resolve()
+        }
+      }
+
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+      animFrameRef.current = requestAnimationFrame(step)
+    })
+  }, [cameraRef, controlsRef])
 
   const handlePlayPause = () => {
     if (mode === 'manual') {
-      setMode('autoplay')
-      setIsPlaying(true)
-      setFollowShip(true)
+      // Smoothly pan to ship camera, then do a short zoom-in (2x), then start playback and enable follow
+      ;(async () => {
+        await animateCameraToShip(progress)
+        await animateZoomInForPlay(progress)
+        setMode('autoplay')
+        setIsPlaying(true)
+        setFollowShip(true)
+      })()
     } else {
+      // Stop playback immediately, reset follow mode, then return camera to neutral centered on globe
       setIsPlaying(false)
-      setMode('manual')
       setFollowShip(false)
+      ;(async () => {
+        // animate to neutral camera/target so dragging rotates around globe center
+        await animateCameraToNeutralRestore()
+        setMode('manual')
+      })()
     }
   }
 
@@ -223,6 +353,169 @@ export function Scene() {
     [cameraRef, controlsRef],
   )
 
+  const animateCameraToShip = useCallback(
+    (startProgress = progress) => {
+      return new Promise((resolve) => {
+        if (!cameraRef.current || !pathPoints || pathPoints.length < 2) {
+          resolve()
+          return
+        }
+
+        // build a curve to sample the ship position and orientation
+        const curve = new THREE.CatmullRomCurve3(pathPoints, false, 'centripetal')
+        const segments = Math.max(pathPoints.length * 8, pathPoints.length)
+        const frames = curve.computeFrenetFrames(segments, false)
+        const shipPointRaw = curve.getPointAt(startProgress)
+        const shipPos = shipPointRaw.clone().normalize().multiplyScalar(5.05)
+
+        const frameIndex = Math.min(Math.floor(startProgress * segments), segments - 1)
+        const tangent = frames.tangents[frameIndex].clone().normalize()
+        const globeUp = shipPos.clone().normalize()
+        const cameraUp = cameraRef.current.up.clone().normalize()
+        const blend = 0.35
+        const blendedUp = globeUp.clone().multiplyScalar(1 - blend).add(cameraUp.clone().multiplyScalar(blend)).normalize()
+
+        const right = new THREE.Vector3().crossVectors(blendedUp, tangent).normalize()
+        const forward = new THREE.Vector3().crossVectors(right, blendedUp).normalize()
+        const mat = new THREE.Matrix4().makeBasis(right, blendedUp, forward)
+        const shipQuat = new THREE.Quaternion().setFromRotationMatrix(mat)
+
+        // desired camera offset matches MovingShip's follow offset rotated by ship orientation
+        // use a slightly larger offset so the follow lerp doesn't cause an abrupt zoom-in
+        const baseOffset = new THREE.Vector3(2, 1.5, 2)
+        const desiredOffset = baseOffset.applyQuaternion(shipQuat).multiplyScalar(1.25)
+        const desiredCamPos = shipPos.clone().add(desiredOffset)
+
+        const startCamPos = cameraRef.current.position.clone()
+        const startTarget = controlsRef.current ? controlsRef.current.target.clone() : new THREE.Vector3(0, 0, 0)
+
+        const rotateDuration = 800
+        const zoomDuration = 700
+
+        let phase = 0
+        let phaseStart = null
+        let sPos = startCamPos.clone()
+        let sTarget = startTarget.clone()
+
+        if (controlsRef.current) controlsRef.current.enabled = false
+
+        const step = (time) => {
+          if (!phaseStart) phaseStart = time
+          const elapsed = time - phaseStart
+
+          if (phase === 0) {
+            const t = Math.min(1, elapsed / rotateDuration)
+            const eased = t * t * (3 - 2 * t)
+            cameraRef.current.position.lerpVectors(sPos, desiredCamPos, eased)
+            if (controlsRef.current) {
+              controlsRef.current.target.lerpVectors(sTarget, shipPos, eased)
+              controlsRef.current.update()
+            }
+
+            if (t < 1) {
+              animFrameRef.current = requestAnimationFrame(step)
+              return
+            }
+
+            phase = 1
+            phaseStart = null
+            sPos = cameraRef.current.position.clone()
+            sTarget = controlsRef.current ? controlsRef.current.target.clone() : shipPos.clone()
+            animFrameRef.current = requestAnimationFrame(step)
+            return
+          }
+
+          const t2 = Math.min(1, elapsed / zoomDuration)
+          const eased2 = t2 * t2 * (3 - 2 * t2)
+          cameraRef.current.position.lerpVectors(sPos, desiredCamPos, eased2)
+          if (controlsRef.current) {
+            controlsRef.current.target.lerpVectors(sTarget, shipPos, eased2)
+            controlsRef.current.update()
+          }
+
+          if (t2 < 1) {
+            animFrameRef.current = requestAnimationFrame(step)
+          } else {
+            // snap camera & target to final desired positions to avoid a jump when follow starts
+            cameraRef.current.position.copy(desiredCamPos)
+            if (controlsRef.current) {
+              controlsRef.current.target.copy(shipPos)
+              controlsRef.current.update()
+              controlsRef.current.enabled = true
+            }
+            animFrameRef.current = null
+            resolve()
+          }
+        }
+
+        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+        animFrameRef.current = requestAnimationFrame(step)
+      })
+    },
+    [cameraRef, controlsRef, pathPoints, progress],
+  )
+
+  const animateZoomOutFromShip = useCallback(
+    (atProgress = progress) => {
+      return new Promise((resolve) => {
+        if (!cameraRef.current || !pathPoints || pathPoints.length < 2) {
+          resolve()
+          return
+        }
+
+        const curve = new THREE.CatmullRomCurve3(pathPoints, false, 'centripetal')
+        const segments = Math.max(pathPoints.length * 8, pathPoints.length)
+        const shipPointRaw = curve.getPointAt(atProgress)
+        const shipPos = shipPointRaw.clone().normalize().multiplyScalar(5.05)
+
+        const startCamPos = cameraRef.current.position.clone()
+        const dir = startCamPos.clone().sub(shipPos)
+        const startDist = dir.length()
+        if (startDist === 0) {
+          resolve()
+          return
+        }
+        const dirNorm = dir.normalize()
+        const desiredDist = Math.max(8, Math.min(14, startDist * 1.6))
+        const desiredCamPos = shipPos.clone().add(dirNorm.multiplyScalar(desiredDist))
+
+        const startTarget = controlsRef.current ? controlsRef.current.target.clone() : shipPos.clone()
+
+        const duration = 1800
+        let start = null
+
+        if (controlsRef.current) controlsRef.current.enabled = false
+
+        const step = (time) => {
+          if (!start) start = time
+          const t = Math.min(1, (time - start) / duration)
+          const eased = t * t * (3 - 2 * t)
+          cameraRef.current.position.lerpVectors(startCamPos, desiredCamPos, eased)
+          if (controlsRef.current) {
+            controlsRef.current.target.lerpVectors(startTarget, shipPos, eased)
+            controlsRef.current.update()
+          }
+
+          if (t < 1) {
+            animFrameRef.current = requestAnimationFrame(step)
+          } else {
+            if (controlsRef.current) {
+              controlsRef.current.target.copy(shipPos)
+              controlsRef.current.update()
+              controlsRef.current.enabled = true
+            }
+            animFrameRef.current = null
+            resolve()
+          }
+        }
+
+        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+        animFrameRef.current = requestAnimationFrame(step)
+      })
+    },
+    [cameraRef, controlsRef, pathPoints, progress],
+  )
+
   // ensure we cancel any running animation when unmounting
   useEffect(() => {
     return () => {
@@ -267,6 +560,38 @@ export function Scene() {
       controlsRef.current.enabled = true
     }
   }
+
+  const navigateModalArc = (direction) => {
+    if (!selectedArcForModal) return
+    const list = arcData
+    const idx = list.findIndex((a) => a.id === selectedArcForModal.id)
+    if (idx === -1) return
+    let nextIdx = direction === 'next' ? idx + 1 : idx - 1
+    if (nextIdx < 0) nextIdx = list.length - 1
+    if (nextIdx >= list.length) nextIdx = 0
+    const nextArc = list[nextIdx]
+    setSelectedArcForModal(nextArc)
+    setCurrentArc(nextArc)
+    // update progress slider to match the selected arc
+    const val = arcProgressMap[nextArc.id] ?? 0
+    setProgress(val)
+    // animate camera to new arc for continuity
+    animateCameraToArc(nextArc)
+  }
+
+  // keyboard navigation for modal (left/right arrows)
+  useEffect(() => {
+    const handler = (e) => {
+      if (!isModalOpen) return
+      if (e.key === 'ArrowLeft') {
+        navigateModalArc('prev')
+      } else if (e.key === 'ArrowRight') {
+        navigateModalArc('next')
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isModalOpen, selectedArcForModal])
 
   const handleResetCamera = () => {
     setFollowShip(false)
@@ -392,6 +717,14 @@ export function Scene() {
               e.stopPropagation()
             }}
           >
+            <button
+              type="button"
+              aria-label="Previous arc"
+              className="modal-nav modal-nav-left"
+              onClick={() => navigateModalArc('prev')}
+            >
+              ‹
+            </button>
             <div className="modal-header">
               <div>
                 <div className="modal-title">{selectedArcForModal.label}</div>
@@ -442,6 +775,14 @@ export function Scene() {
                 <span>Impact: {selectedArcForModal.worldImpact}</span>
               </div>
             </div>
+            <button
+              type="button"
+              aria-label="Next arc"
+              className="modal-nav modal-nav-right"
+              onClick={() => navigateModalArc('next')}
+            >
+              ›
+            </button>
           </div>
         </div>
       ) : null}

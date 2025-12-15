@@ -23,6 +23,7 @@ function SceneContent({
   mode,
   onMarkerClick,
   followOffsetScale,
+  sunnyStartProgress,
 }) {
   const { gl } = useThree()
 
@@ -87,6 +88,7 @@ function SceneContent({
           progress={progress}
           onProgressChange={onProgressChange}
           followOffsetScale={followOffsetScale}
+          sunnyStartProgress={sunnyStartProgress}
         />
       </Suspense>
 
@@ -205,6 +207,7 @@ export function Scene() {
           mode={mode}
           onMarkerClick={handleMarkerClick}
           followOffsetScale={followOffsetScale}
+          sunnyStartProgress={arcProgressMap['post-enies'] ?? arcProgressMap['thriller-bark'] ?? 0.4}
         />
       </Canvas>
 

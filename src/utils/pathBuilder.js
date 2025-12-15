@@ -19,6 +19,16 @@ const curve = new THREE.CatmullRomCurve3(controlPoints, false, 'centripetal', 0.
 const NUM_SAMPLES = 1500
 export const pathPoints = curve.getPoints(NUM_SAMPLES)
 
+const cumulativeDistances = (() => {
+  const accum = [0]
+  let total = 0
+  for (let i = 1; i < pathPoints.length; i += 1) {
+    total += pathPoints[i].distanceTo(pathPoints[i - 1])
+    accum.push(total)
+  }
+  return { accum, total }
+})()
+
 export function findClosestPathIndex(target, points = pathPoints) {
   let bestIndex = 0
   let bestDist = Infinity
@@ -34,11 +44,11 @@ export function findClosestPathIndex(target, points = pathPoints) {
 
 export function buildArcProgressMap(arcs) {
   const map = {}
-  const total = pathPoints.length - 1 || 1
+  const total = cumulativeDistances.total || 1
   arcs.forEach((arc) => {
     const v = new THREE.Vector3(arc.position.x, arc.position.y, arc.position.z).normalize().multiplyScalar(GLOBE_RADIUS + OFFSET)
     const idx = findClosestPathIndex(v)
-    map[arc.id] = idx / total
+    map[arc.id] = cumulativeDistances.accum[idx] / total
   })
   return map
 }

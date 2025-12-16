@@ -1,6 +1,6 @@
 import { OrbitControls, Stars, Billboard } from '@react-three/drei'
 import { Canvas, useThree } from '@react-three/fiber'
-import { Suspense, useEffect, useMemo, useState, useRef, useCallback } from 'react'
+import React, { Suspense, useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import * as THREE from 'three'
 import { FiZoomIn, FiZoomOut, FiRefreshCw, FiPlay, FiPause } from 'react-icons/fi'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
@@ -103,6 +103,38 @@ function SceneContent({
       <OrbitControls ref={controlsRef} enablePan={false} minDistance={8} maxDistance={20} />
     </>
   )
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+
+  componentDidCatch(error, info) {
+    // eslint-disable-next-line no-console
+    console.error('ErrorBoundary caught error', error, info)
+  }
+
+  render() {
+    if (this.state.error) {
+      const msg = this.state.error && this.state.error.message ? this.state.error.message : String(this.state.error)
+      return (
+        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(4,6,10,0.95)', color: 'white', zIndex: 9999, padding: 20 }}>
+          <div style={{ maxWidth: 900 }}>
+            <h2 style={{ marginTop: 0 }}>Scene error</h2>
+            <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg}</pre>
+            <p>Check DevTools console for stack trace.</p>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
 }
 
 export function Scene() {

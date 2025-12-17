@@ -8,6 +8,7 @@ import { arcs } from '../data/arcs'
 import { arcData } from '../data/arcData'
 import IslandList from './IslandList'
 import Dashboard from './Dashboard'
+import ArcDashboard from './ArcDashboard'
 import RoutePath from './RoutePath'
 import WorldGlobe from './WorldGlobe'
 import MovingShip from './MovingShip'
@@ -891,7 +892,7 @@ export function Scene() {
       {mode === 'manual' && isModalOpen && selectedArcForModal ? (
         <div className="modal-backdrop" onClick={closeModalAndResetControls}>
           <div
-            className="arc-modal"
+            className="arc-modal arc-modal-v2"
             onClick={(e) => {
               e.stopPropagation()
             }}
@@ -904,56 +905,117 @@ export function Scene() {
             >
               ‹
             </button>
-            <div className="modal-header">
-              <div>
-                <div className="modal-title">{selectedArcForModal.label}</div>
-                <div className="modal-saga">{selectedArcForModal.saga}</div>
-              </div>
-              <button type="button" className="modal-close" onClick={closeModalAndResetControls}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="modal-episodes">
-                Episodes: {selectedArcForModal.startEpisode} – {selectedArcForModal.endEpisode} (
-                {selectedArcForModal.episodeCount})
-              </div>
-              {selectedArcForModal.summary ? (
-                <div className="modal-summary">{selectedArcForModal.summary}</div>
-              ) : null}
-
-              {selectedArcForModal.keyEvents?.length ? (
-                <div className="modal-section">
-                  <div className="modal-section-title">Key events</div>
-                  <ul>
-                    {selectedArcForModal.keyEvents.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
+            
+            {/* Compact Header */}
+            <div className="modal-header-v2">
+              <div className="modal-title-row">
+                <div className="modal-title-block">
+                  <div className="modal-title">{selectedArcForModal.label}</div>
+                  <div className="modal-meta">
+                    <span className="modal-saga-badge">{selectedArcForModal.saga}</span>
+                    <span className="modal-ep-badge">Ep. {selectedArcForModal.startEpisode}–{selectedArcForModal.endEpisode}</span>
+                  </div>
                 </div>
-              ) : null}
-
-              {selectedArcForModal.highlightCharacters?.length ? (
-                <div className="modal-section">
-                  <div className="modal-section-title">Highlight characters</div>
-                  <ul>
-                    {selectedArcForModal.highlightCharacters.map(({ name, role, epithet, bountyDuringArc }) => (
-                      <li key={name}>
-                        <strong>{name}</strong> — {role}
-                        {epithet ? ` (${epithet})` : ''}
-                        {bountyDuringArc ? ` • Bounty: ${new Intl.NumberFormat('en-US').format(bountyDuringArc)}` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              <div className="modal-metrics">
-                <span>Weight: {(selectedArcForModal.narrativeWeight ?? 0).toFixed(2)}</span>
-                <span>Risk: {(selectedArcForModal.crewRisk ?? 0).toFixed(2)}</span>
-                <span>Impact: {selectedArcForModal.worldImpact}</span>
+                <button type="button" className="modal-close" onClick={closeModalAndResetControls}>✕</button>
               </div>
             </div>
+
+            {/* Hero Stats Row */}
+            <div className="modal-hero-stats">
+              <div className="hero-stat hero-stat-rating">
+                <div className="hero-stat-value">{selectedArcForModal.rating?.toFixed(1) || '—'}</div>
+                <div className="hero-stat-label">Rating</div>
+                <div className="hero-stat-bar">
+                  <div className="hero-stat-fill" style={{ width: `${(selectedArcForModal.rating / 10) * 100}%` }} />
+                </div>
+              </div>
+              <div className="hero-stat hero-stat-emotion">
+                <div className="hero-stat-value">{selectedArcForModal.emotionalImpact?.toFixed(1) || '—'}</div>
+                <div className="hero-stat-label">Emotion</div>
+                <div className="hero-stat-bar">
+                  <div className="hero-stat-fill" style={{ width: `${(selectedArcForModal.emotionalImpact / 10) * 100}%` }} />
+                </div>
+              </div>
+              <div className="hero-stat hero-stat-action">
+                <div className="hero-stat-value">{selectedArcForModal.actionIntensity?.toFixed(1) || '—'}</div>
+                <div className="hero-stat-label">Action</div>
+                <div className="hero-stat-bar">
+                  <div className="hero-stat-fill" style={{ width: `${(selectedArcForModal.actionIntensity / 10) * 100}%` }} />
+                </div>
+              </div>
+              <div className="hero-stat hero-stat-fan">
+                <div className="hero-stat-value">{selectedArcForModal.fanFavorite || '—'}%</div>
+                <div className="hero-stat-label">Fan Score</div>
+                <div className="hero-stat-bar">
+                  <div className="hero-stat-fill" style={{ width: `${selectedArcForModal.fanFavorite}%` }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Stat Pills */}
+            <div className="modal-stat-pills">
+              <div className="stat-pill">
+                <span className="pill-icon">📺</span>
+                <span className="pill-value">{selectedArcForModal.episodeCount}</span>
+                <span className="pill-label">Episodes</span>
+              </div>
+              <div className="stat-pill">
+                <span className="pill-icon">📖</span>
+                <span className="pill-value">{(selectedArcForModal.mangaChapters?.[1] - selectedArcForModal.mangaChapters?.[0] + 1) || '—'}</span>
+                <span className="pill-label">Chapters</span>
+              </div>
+              <div className="stat-pill">
+                <span className="pill-icon">😈</span>
+                <span className="pill-value">{selectedArcForModal.newDevilFruits || 0}</span>
+                <span className="pill-label">Devil Fruits</span>
+              </div>
+              <div className="stat-pill">
+                <span className="pill-icon">🔄</span>
+                <span className="pill-value">{selectedArcForModal.plotTwists || 0}</span>
+                <span className="pill-label">Plot Twists</span>
+              </div>
+              <div className="stat-pill" data-impact={selectedArcForModal.worldImpact?.toLowerCase()}>
+                <span className="pill-icon">🌍</span>
+                <span className="pill-value">{selectedArcForModal.worldImpact}</span>
+                <span className="pill-label">Impact</span>
+              </div>
+            </div>
+
+            {/* Pacing & Risk Bars */}
+            <div className="modal-meter-row">
+              <div className="modal-meter">
+                <div className="meter-header">
+                  <span className="meter-label">⏱️ Anime Pacing</span>
+                  <span className="meter-value" data-quality={selectedArcForModal.animePacing >= 0.65 ? 'good' : selectedArcForModal.animePacing >= 0.5 ? 'ok' : 'slow'}>
+                    {selectedArcForModal.animePacing >= 0.65 ? 'Great' : selectedArcForModal.animePacing >= 0.5 ? 'Decent' : 'Slow'}
+                  </span>
+                </div>
+                <div className="meter-track">
+                  <div className="meter-fill meter-fill-pacing" style={{ width: `${(selectedArcForModal.animePacing || 0.5) * 100}%` }} />
+                </div>
+              </div>
+              <div className="modal-meter">
+                <div className="meter-header">
+                  <span className="meter-label">⚔️ Crew Risk</span>
+                  <span className="meter-value">{Math.round((selectedArcForModal.crewRisk || 0) * 100)}%</span>
+                </div>
+                <div className="meter-track">
+                  <div className="meter-fill meter-fill-risk" style={{ width: `${(selectedArcForModal.crewRisk || 0) * 100}%` }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Arc Dashboard with visualizations */}
+            <ArcDashboard arc={selectedArcForModal} expanded={true} />
+
+            {/* Collapsible Summary */}
+            {selectedArcForModal.summary && (
+              <details className="modal-details">
+                <summary>📜 Story Summary</summary>
+                <p>{selectedArcForModal.summary}</p>
+              </details>
+            )}
+
             <button
               type="button"
               aria-label="Next arc"

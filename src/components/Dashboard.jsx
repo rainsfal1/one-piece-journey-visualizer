@@ -1,22 +1,15 @@
 import { useState, useMemo } from 'react'
-import episodes from '../data/episodes.json'
 import {
   getArcMetrics,
-  getCharacterFrequenciesForArc,
-  getScatterData,
   getEpisodeCountByArc,
   getSagaDistribution,
-  getWorldImpactDistribution,
   getBountyProgression,
   getCrewJoinTimeline,
   getTopCharactersOverall,
-  getNarrativeRiskComparison,
 } from '../utils/dataPrep'
 
 import {
   ResponsiveContainer,
-  ScatterChart,
-  Scatter,
   XAxis,
   YAxis,
   PieChart,
@@ -25,67 +18,54 @@ import {
   BarChart,
   Bar,
   CartesianGrid,
-  Legend,
   Tooltip as ReTooltip,
   AreaChart,
   Area,
   LineChart,
   Line,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  ComposedChart,
 } from 'recharts'
 
 const CHART_COLORS = ['#6cc3ff', '#ff9a7a', '#7aff9a', '#ffd97a', '#d97aff', '#7affff', '#ff7ab8', '#b8ff7a']
-const IMPACT_COLORS = { Local: '#6cc3ff', Regional: '#ffd97a', Global: '#ff7a7a' }
 
-const VISUALIZATION_OPTIONS = [
-  { id: 'scatter', label: 'Risk vs Narrative', icon: '⚡' },
-  { id: 'episodes', label: 'Episode Count', icon: '📊' },
-  { id: 'saga', label: 'Saga Distribution', icon: '🗺️' },
-  { id: 'impact', label: 'World Impact', icon: '🌍' },
-  { id: 'characters', label: 'Top Characters', icon: '👥' },
-  { id: 'crew', label: 'Crew Timeline', icon: '🏴‍☠️' },
-  { id: 'comparison', label: 'Arc Comparison', icon: '📈' },
-  { id: 'bounty', label: 'Bounty Tracker', icon: '💰' },
-]
-
-function CharacterBars({ arc, episodes }) {
-  if (!arc || !arc.startEpisode || !arc.endEpisode) return <div className="empty">No episode data available</div>
-
-  const start = arc.startEpisode
-  const end = arc.endEpisode
-  const counts = episodes.reduce((acc, ep) => {
-    if (typeof ep.episode !== 'number') return acc
-    if (ep.episode < start || ep.episode > end) return acc
-    const chars = ep.character_appearances ?? []
-    chars.forEach((c) => {
-      acc[c] = (acc[c] || 0) + 1
-    })
-    return acc
-  }, {})
-
-  const list = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8)
-  if (!list.length) return <div className="empty">No character appearances found for this arc.</div>
-  const max = list[0][1]
-
-  return (
-    <div className="character-bars">
-      {list.map(([name, cnt]) => (
-        <div className="char-row" key={name}>
-          <div className="char-name">{name}</div>
-          <div className="char-bar-wrap">
-            <div className="char-bar" style={{ width: `${Math.round((cnt / max) * 100)}%` }} />
-          </div>
-          <div className="char-count">{cnt}</div>
-        </div>
-      ))}
-    </div>
-  )
+// Format bounty with appropriate unit (handles Chopper's small bounties)
+function formatBounty(bounty) {
+  if (bounty >= 1000000000) return `${(bounty / 1e9).toLocaleString()}B ฿`
+  if (bounty >= 1000000) return `${(bounty / 1e6).toLocaleString()}M ฿`
+  if (bounty >= 1000) return `${(bounty / 1000).toLocaleString()}K ฿`
+  return `${bounty.toLocaleString()} ฿`
 }
+
+// Dashboard tile configuration
+const TILES = [
+  { 
+    id: 'episodes', 
+    label: 'Episodes & Sagas', 
+    icon: '📊', 
+    description: 'Episode distribution across arcs and sagas',
+    accent: '#6cc3ff'
+  },
+  { 
+    id: 'characters', 
+    label: 'Top Characters', 
+    icon: '👥', 
+    description: 'Most appearing characters in the series',
+    accent: '#7aff9a'
+  },
+  { 
+    id: 'crew', 
+    label: 'Crew Timeline', 
+    icon: '🏴‍☠️', 
+    description: 'When each Straw Hat joined the crew',
+    accent: '#d97aff'
+  },
+  { 
+    id: 'bounty', 
+    label: 'Bounty Tracker', 
+    icon: '💰', 
+    description: 'Track crew bounty progression over time',
+    accent: '#ffd97a'
+  },
+]
 
 /** Custom tooltip for charts */
 function CustomTooltip({ active, payload, label }) {
@@ -102,161 +82,176 @@ function CustomTooltip({ active, payload, label }) {
   )
 }
 
-/** Scatter Plot: Narrative Weight vs Crew Risk */
-function ScatterPlotViz({ selectedArc }) {
-  const scatterData = useMemo(() => getScatterData(), [])
-  return (
-    <div className="viz-container">
-      <div className="viz-header">
-        <h3>Narrative Weight vs Crew Risk</h3>
-        <p className="viz-desc">Each dot represents an arc. X-axis shows narrative importance, Y-axis shows danger level. Click arcs on the globe to highlight.</p>
-      </div>
-      <div className="viz-chart" style={{ height: 320 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis type="number" dataKey="x" name="Narrative" domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} stroke="#8ab4f8" />
-            <YAxis type="number" dataKey="y" name="Risk" domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} stroke="#8ab4f8" />
-            <ReTooltip content={<CustomTooltip />} />
-            <Scatter name="Arcs" data={scatterData} fill="#6cc3ff">
-              {scatterData.map((entry) => (
-                <Cell key={entry.id} fill={selectedArc?.id === entry.id ? '#ff9a7a' : '#6cc3ff'} r={entry.r / 5} />
-              ))}
-            </Scatter>
-          </ScatterChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  )
-}
+/** Combined Episode & Saga Visualization */
+function EpisodeSagaViz() {
+  const episodeData = useMemo(() => getEpisodeCountByArc(), [])
+  const sagaData = useMemo(() => getSagaDistribution(), [])
+  const [view, setView] = useState('bars') // 'bars' | 'pie'
 
-/** Bar Chart: Episode Count by Arc */
-function EpisodeCountViz() {
-  const data = useMemo(() => getEpisodeCountByArc(), [])
-  return (
-    <div className="viz-container">
-      <div className="viz-header">
-        <h3>Episode Count by Arc</h3>
-        <p className="viz-desc">Compare the length of each story arc. Longer arcs often contain more major battles and character development.</p>
-      </div>
-      <div className="viz-chart" style={{ height: 320 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, bottom: 60, left: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis dataKey="shortLabel" angle={-45} textAnchor="end" height={60} stroke="#8ab4f8" fontSize={11} />
-            <YAxis stroke="#8ab4f8" />
-            <ReTooltip content={<CustomTooltip />} />
-            <Bar dataKey="episodeCount" name="Episodes" fill="#6cc3ff" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  )
-}
+  const totalEpisodes = episodeData.reduce((sum, a) => sum + a.episodeCount, 0)
 
-/** Pie Chart: Saga Distribution */
-function SagaDistributionViz() {
-  const data = useMemo(() => getSagaDistribution(), [])
   return (
-    <div className="viz-container">
-      <div className="viz-header">
-        <h3>Saga Episode Distribution</h3>
-        <p className="viz-desc">See how episodes are distributed across major story sagas. Each saga contains multiple arcs.</p>
+    <div className="viz-full">
+      <div className="viz-full-header">
+        <div className="viz-header-text">
+          <h2>📊 Episodes & Saga Distribution</h2>
+          <p>Explore how episodes are distributed across arcs and major sagas</p>
+        </div>
+        <div className="view-toggle">
+          <button className={view === 'bars' ? 'active' : ''} onClick={() => setView('bars')}>
+            <span>📊</span> By Arc
+          </button>
+          <button className={view === 'pie' ? 'active' : ''} onClick={() => setView('pie')}>
+            <span>🥧</span> By Saga
+          </button>
+        </div>
       </div>
-      <div className="viz-chart" style={{ height: 320 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={data} dataKey="episodeCount" nameKey="saga" cx="50%" cy="50%" outerRadius={100} label={({ saga, percent }) => `${saga.split(' ')[0]} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-              {data.map((entry, index) => (
-                <Cell key={entry.saga} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-              ))}
-            </Pie>
-            <ReTooltip content={<CustomTooltip />} />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  )
-}
 
-/** Pie Chart: World Impact */
-function WorldImpactViz() {
-  const data = useMemo(() => getWorldImpactDistribution(), [])
-  return (
-    <div className="viz-container">
-      <div className="viz-header">
-        <h3>World Impact Distribution</h3>
-        <p className="viz-desc">How arcs affect the One Piece world: Local (island only), Regional (sea area), Global (world-changing events).</p>
+      <div className="viz-stats-row">
+        <div className="viz-stat">
+          <span className="viz-stat-value">{totalEpisodes}</span>
+          <span className="viz-stat-label">Total Episodes</span>
+        </div>
+        <div className="viz-stat">
+          <span className="viz-stat-value">{episodeData.length}</span>
+          <span className="viz-stat-label">Arcs</span>
+        </div>
+        <div className="viz-stat">
+          <span className="viz-stat-value">{sagaData.length}</span>
+          <span className="viz-stat-label">Sagas</span>
+        </div>
+        <div className="viz-stat">
+          <span className="viz-stat-value">{Math.round(totalEpisodes / episodeData.length)}</span>
+          <span className="viz-stat-label">Avg per Arc</span>
+        </div>
       </div>
-      <div className="viz-chart viz-split">
-        <div style={{ flex: 1, height: 280 }}>
+
+      {view === 'bars' ? (
+        <div className="viz-chart-full" style={{ height: 380 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={2}>
-                {data.map((entry) => (
-                  <Cell key={entry.name} fill={IMPACT_COLORS[entry.name]} />
-                ))}
-              </Pie>
-              <ReTooltip />
-              <Legend />
-            </PieChart>
+            <BarChart data={episodeData} margin={{ top: 20, right: 20, bottom: 80, left: 20 }}>
+              <defs>
+                <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6cc3ff" stopOpacity={1} />
+                  <stop offset="100%" stopColor="#6cc3ff" stopOpacity={0.5} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+              <XAxis dataKey="shortLabel" angle={-45} textAnchor="end" height={80} stroke="#8ab4f8" fontSize={11} />
+              <YAxis stroke="#8ab4f8" />
+              <ReTooltip content={<CustomTooltip />} />
+              <Bar dataKey="episodeCount" name="Episodes" fill="url(#barGrad)" radius={[6, 6, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="impact-legend">
-          <div className="impact-item"><span className="impact-dot" style={{ background: IMPACT_COLORS.Local }} /> <strong>Local:</strong> Affects a single island</div>
-          <div className="impact-item"><span className="impact-dot" style={{ background: IMPACT_COLORS.Regional }} /> <strong>Regional:</strong> Affects a sea or multiple islands</div>
-          <div className="impact-item"><span className="impact-dot" style={{ background: IMPACT_COLORS.Global }} /> <strong>Global:</strong> World-changing consequences</div>
+      ) : (
+        <div className="viz-split-view">
+          <div className="viz-chart-half">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie 
+                  data={sagaData} 
+                  dataKey="episodeCount" 
+                  nameKey="saga" 
+                  cx="50%" 
+                  cy="50%" 
+                  innerRadius={60}
+                  outerRadius={110} 
+                  paddingAngle={2}
+                  label={({ saga, percent }) => `${saga.split(' ')[0]} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                >
+                  {sagaData.map((entry, index) => (
+                    <Cell key={entry.saga} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
+                <ReTooltip content={<CustomTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="saga-legend">
+            {sagaData.map((s, i) => (
+              <div key={s.saga} className="saga-legend-item">
+                <span className="saga-dot" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                <span className="saga-name">{s.saga}</span>
+                <span className="saga-count">{s.episodeCount} eps</span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
 
-/** Bar Chart: Top Characters Overall */
+/** Top Characters Visualization */
 function TopCharactersViz() {
-  const data = useMemo(() => getTopCharactersOverall(12), [])
+  const data = useMemo(() => getTopCharactersOverall(15), [])
+
   return (
-    <div className="viz-container">
-      <div className="viz-header">
-        <h3>Most Appearing Characters</h3>
-        <p className="viz-desc">Characters with the most episode appearances across the entire series.</p>
+    <div className="viz-full">
+      <div className="viz-full-header">
+        <div className="viz-header-text">
+          <h2>👥 Most Appearing Characters</h2>
+          <p>Characters with the highest episode appearances across the entire series</p>
+        </div>
       </div>
-      <div className="viz-chart" style={{ height: 340 }}>
+
+      <div className="viz-chart-full" style={{ height: 420 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ top: 10, right: 20, bottom: 10, left: 100 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+          <BarChart data={data} layout="vertical" margin={{ top: 10, right: 30, bottom: 10, left: 110 }}>
+            <defs>
+              <linearGradient id="charGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#7aff9a" stopOpacity={0.8} />
+                <stop offset="100%" stopColor="#7aff9a" stopOpacity={1} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" horizontal={false} />
             <XAxis type="number" stroke="#8ab4f8" />
-            <YAxis dataKey="name" type="category" stroke="#8ab4f8" fontSize={12} width={95} />
+            <YAxis dataKey="name" type="category" stroke="#8ab4f8" fontSize={12} width={105} />
             <ReTooltip content={<CustomTooltip />} />
-            <Bar dataKey="count" name="Appearances" fill="#7aff9a" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="count" name="Appearances" fill="url(#charGrad)" radius={[0, 8, 8, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
+
+      <div className="character-podium">
+        {data.slice(0, 3).map((c, i) => (
+          <div key={c.name} className={`podium-card podium-${i + 1}`}>
+            <div className="podium-rank">{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</div>
+            <div className="podium-name">{c.name}</div>
+            <div className="podium-count">{c.count} episodes</div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
 
-/** Timeline: Crew Joins */
+/** Crew Timeline Visualization */
 function CrewTimelineViz() {
   const data = useMemo(() => getCrewJoinTimeline(), [])
+
   return (
-    <div className="viz-container">
-      <div className="viz-header">
-        <h3>Straw Hat Crew Timeline</h3>
-        <p className="viz-desc">When each crew member officially joined the Straw Hat Pirates (by episode number).</p>
+    <div className="viz-full">
+      <div className="viz-full-header">
+        <div className="viz-header-text">
+          <h2>🏴‍☠️ Straw Hat Crew Timeline</h2>
+          <p>When each crew member officially joined the Straw Hat Pirates</p>
+        </div>
       </div>
-      <div className="viz-chart" style={{ height: 320 }}>
+
+      <div className="viz-chart-full" style={{ height: 320 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+          <AreaChart data={data} margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
             <defs>
-              <linearGradient id="crewGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6cc3ff" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="#6cc3ff" stopOpacity={0.1} />
+              <linearGradient id="crewGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#d97aff" stopOpacity={0.8} />
+                <stop offset="100%" stopColor="#d97aff" stopOpacity={0.1} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis dataKey="name" stroke="#8ab4f8" fontSize={11} angle={-20} textAnchor="end" height={50} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+            <XAxis dataKey="name" stroke="#8ab4f8" fontSize={11} angle={-15} textAnchor="end" height={50} />
             <YAxis stroke="#8ab4f8" label={{ value: 'Episode', angle: -90, position: 'insideLeft', fill: '#8ab4f8' }} />
             <ReTooltip content={({ active, payload }) => {
               if (!active || !payload?.length) return null
@@ -269,16 +264,20 @@ function CrewTimelineViz() {
                 </div>
               )
             }} />
-            <Area type="stepAfter" dataKey="episode" stroke="#6cc3ff" fill="url(#crewGradient)" strokeWidth={2} dot={{ fill: '#ff9a7a', strokeWidth: 2, r: 5 }} />
+            <Area type="stepAfter" dataKey="episode" stroke="#d97aff" fill="url(#crewGrad)" strokeWidth={3} dot={{ fill: '#ff9a7a', strokeWidth: 2, r: 6 }} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
-      <div className="crew-cards">
+
+      <div className="crew-grid">
         {data.map((c, i) => (
-          <div key={c.id} className="crew-card" style={{ borderColor: CHART_COLORS[i % CHART_COLORS.length] }}>
-            <div className="crew-name">{c.name}</div>
-            <div className="crew-role">{c.role}</div>
-            <div className="crew-ep">Ep. {c.episode}</div>
+          <div key={c.id} className="crew-member-card" style={{ '--accent': CHART_COLORS[i % CHART_COLORS.length] }}>
+            <div className="crew-order">#{c.order}</div>
+            <div className="crew-info">
+              <div className="crew-name">{c.name}</div>
+              <div className="crew-role">{c.role}</div>
+            </div>
+            <div className="crew-episode">Ep. {c.episode}</div>
           </div>
         ))}
       </div>
@@ -286,184 +285,225 @@ function CrewTimelineViz() {
   )
 }
 
-/** Comparison: Narrative vs Risk Bar Chart */
-function ArcComparisonViz() {
-  const data = useMemo(() => getNarrativeRiskComparison(), [])
-  return (
-    <div className="viz-container">
-      <div className="viz-header">
-        <h3>Arc Metrics Comparison</h3>
-        <p className="viz-desc">Compare narrative weight (story importance) vs crew risk (danger level) for each arc side by side.</p>
-      </div>
-      <div className="viz-chart" style={{ height: 340 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, bottom: 60, left: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis dataKey="shortLabel" angle={-45} textAnchor="end" height={60} stroke="#8ab4f8" fontSize={10} />
-            <YAxis stroke="#8ab4f8" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-            <ReTooltip content={<CustomTooltip />} />
-            <Legend />
-            <Bar dataKey="narrativeWeight" name="Narrative" fill="#6cc3ff" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="crewRisk" name="Risk" fill="#ff9a7a" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  )
-}
+// Define crew order for consistent display (outside component to avoid dependency issues)
+const CREW_ORDER = [
+  'Monkey D. Luffy', 'Roronoa Zoro', 'Nami', 'Usopp', 'Sanji',
+  'Tony Tony Chopper', 'Nico Robin', 'Franky', 'Brook', 'Jinbe'
+]
 
-/** Bounty Tracker Line Chart */
+/** Bounty Tracker Visualization with character selector */
 function BountyTrackerViz() {
   const rawData = useMemo(() => getBountyProgression(), [])
-  // Build combined timeline data for Luffy (most complete)
-  const luffy = rawData.find((d) => d.character.includes('Luffy'))
-  const chartData = luffy?.progression.map((p) => ({ label: p.label.split('/')[0].split(' ')[0], bounty: p.bounty / 1e6 })) ?? []
+  
+  // Sort crew members by the predefined order
+  const sortedData = useMemo(() => {
+    return [...rawData].sort((a, b) => {
+      const aIndex = CREW_ORDER.findIndex(name => a.character.includes(name.split(' ').pop()))
+      const bIndex = CREW_ORDER.findIndex(name => b.character.includes(name.split(' ').pop()))
+      if (aIndex === -1 && bIndex === -1) return 0
+      if (aIndex === -1) return 1
+      if (bIndex === -1) return -1
+      return aIndex - bIndex
+    })
+  }, [rawData])
+  
+  const [selectedChar, setSelectedChar] = useState(() => {
+    const luffy = sortedData.find(d => d.character.includes('Luffy'))
+    return luffy?.character || sortedData[0]?.character || ''
+  })
+
+  const selectedData = rawData.find(d => d.character === selectedChar)
+  const chartData = selectedData?.progression.map((p) => ({ 
+    label: p.label.split('/')[0].split(' ')[0], 
+    bounty: p.bounty,
+    fullLabel: p.label,
+  })) ?? []
+
+  const currentBounty = selectedData?.progression[selectedData.progression.length - 1]?.bounty || 0
+  const firstBounty = selectedData?.progression[0]?.bounty || 0
+  const increase = firstBounty > 0 ? Math.round(((currentBounty - firstBounty) / firstBounty) * 100) : 0
+  
+  // Determine Y-axis format based on bounty scale
+  const maxBounty = Math.max(...chartData.map(d => d.bounty), 1)
+  const formatYAxis = (v) => {
+    if (maxBounty >= 1000000000) return `${(v / 1e9).toFixed(1)}B`
+    if (maxBounty >= 1000000) return `${(v / 1e6).toFixed(0)}M`
+    if (maxBounty >= 1000) return `${(v / 1000).toFixed(0)}K`
+    return v.toString()
+  }
 
   return (
-    <div className="viz-container">
-      <div className="viz-header">
-        <h3>Luffy's Bounty Progression</h3>
-        <p className="viz-desc">Track how Luffy's bounty increased throughout major arcs (in millions of Berries).</p>
+    <div className="viz-full">
+      <div className="viz-full-header">
+        <div className="viz-header-text">
+          <h2>💰 Bounty Tracker</h2>
+          <p>Track bounty progression for Straw Hat crew members</p>
+        </div>
       </div>
-      <div className="viz-chart" style={{ height: 300 }}>
+
+      {/* Character Selector */}
+      <div className="bounty-selector">
+        {sortedData.map((char) => {
+          // Get short name for display
+          const nameParts = char.character.split(' ')
+          const shortName = char.character.includes('Chopper') ? 'Chopper' 
+            : char.character.includes('Robin') ? 'Robin'
+            : nameParts[nameParts.length - 1]
+          const isSelected = char.character === selectedChar
+          const latestBounty = char.progression[char.progression.length - 1]?.bounty || 0
+          return (
+            <button
+              key={char.character}
+              className={`bounty-char-btn ${isSelected ? 'active' : ''}`}
+              onClick={() => setSelectedChar(char.character)}
+            >
+              <span className="btn-name">{shortName}</span>
+              <span className="btn-bounty">{latestBounty >= 1000000 ? `${(latestBounty / 1e6).toLocaleString()}M` : latestBounty.toLocaleString()}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Stats Row */}
+      <div className="bounty-stats-row">
+        <div className="bounty-stat bounty-stat-current">
+          <span className="bounty-stat-label">Current Bounty</span>
+          <span className="bounty-stat-value">{formatBounty(currentBounty)}</span>
+        </div>
+        <div className="bounty-stat">
+          <span className="bounty-stat-label">First Bounty</span>
+          <span className="bounty-stat-value">{formatBounty(firstBounty)}</span>
+        </div>
+        <div className="bounty-stat">
+          <span className="bounty-stat-label">Updates</span>
+          <span className="bounty-stat-value">{chartData.length}</span>
+        </div>
+        <div className="bounty-stat bounty-stat-increase">
+          <span className="bounty-stat-label">Total Increase</span>
+          <span className="bounty-stat-value">+{increase.toLocaleString()}%</span>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div className="viz-chart-full" style={{ height: 320 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 20, right: 20, bottom: 40, left: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis dataKey="label" angle={-30} textAnchor="end" stroke="#8ab4f8" fontSize={11} height={50} />
-            <YAxis stroke="#8ab4f8" tickFormatter={(v) => `${v}M`} />
-            <ReTooltip formatter={(value) => [`${value.toLocaleString()}M ฿`, 'Bounty']} />
-            <Line type="monotone" dataKey="bounty" stroke="#ffd97a" strokeWidth={3} dot={{ fill: '#ff9a7a', strokeWidth: 2, r: 6 }} activeDot={{ r: 8 }} />
+          <LineChart data={chartData} margin={{ top: 20, right: 30, bottom: 60, left: 30 }}>
+            <defs>
+              <linearGradient id="bountyGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ffd97a" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="#ffd97a" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+            <XAxis dataKey="label" angle={-35} textAnchor="end" stroke="#8ab4f8" fontSize={11} height={60} />
+            <YAxis stroke="#8ab4f8" tickFormatter={formatYAxis} />
+            <ReTooltip formatter={(value) => [formatBounty(value), 'Bounty']} labelFormatter={(label, payload) => payload?.[0]?.payload?.fullLabel || label} />
+            <Area type="monotone" dataKey="bounty" stroke="transparent" fill="url(#bountyGrad)" />
+            <Line 
+              type="monotone" 
+              dataKey="bounty" 
+              stroke="#ffd97a" 
+              strokeWidth={3} 
+              dot={{ fill: '#ff9a7a', strokeWidth: 2, r: 6, stroke: '#ffd97a' }} 
+              activeDot={{ r: 10, fill: '#ffd97a' }} 
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <div className="bounty-summary">
-        {rawData.slice(0, 4).map((char) => (
-          <div key={char.character} className="bounty-card">
-            <div className="bounty-char">{char.character.split(' ').pop()}</div>
-            <div className="bounty-final">{(char.progression[char.progression.length - 1]?.bounty / 1e6).toLocaleString()}M ฿</div>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
 
-export default function Dashboard({ arcs = [], open = false, onClose, onSelect }) {
-  const [activeViz, setActiveViz] = useState('scatter')
-  const [selectedArc, setSelectedArc] = useState(null)
-
+export default function Dashboard({ arcs = [], open = false, onClose }) {
+  const [activeViz, setActiveViz] = useState(null) // null = show tiles
   const metrics = useMemo(() => getArcMetrics(), [])
 
   if (!open) return null
 
-  const renderVisualization = () => {
+  const renderContent = () => {
+    if (!activeViz) {
+      return (
+        <div className="dashboard-tiles">
+          {TILES.map((tile) => (
+            <button
+              key={tile.id}
+              className="dashboard-tile"
+              style={{ '--tile-accent': tile.accent }}
+              onClick={() => setActiveViz(tile.id)}
+            >
+              <div className="tile-icon">{tile.icon}</div>
+              <div className="tile-content">
+                <h3>{tile.label}</h3>
+                <p>{tile.description}</p>
+              </div>
+              <div className="tile-arrow">→</div>
+            </button>
+          ))}
+        </div>
+      )
+    }
+
     switch (activeViz) {
-      case 'scatter':
-        return <ScatterPlotViz selectedArc={selectedArc} />
       case 'episodes':
-        return <EpisodeCountViz />
-      case 'saga':
-        return <SagaDistributionViz />
-      case 'impact':
-        return <WorldImpactViz />
+        return <EpisodeSagaViz />
       case 'characters':
         return <TopCharactersViz />
       case 'crew':
         return <CrewTimelineViz />
-      case 'comparison':
-        return <ArcComparisonViz />
       case 'bounty':
         return <BountyTrackerViz />
       default:
-        return <ScatterPlotViz selectedArc={selectedArc} />
+        return null
     }
   }
 
+  const activeTile = TILES.find(t => t.id === activeViz)
+
   return (
     <div className="dashboard-backdrop" onClick={onClose}>
-      <div className="dashboard-panel dashboard-panel-enhanced" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-        <div className="dashboard-header">
-          <div>
-            <div className="dashboard-title">📊 Voyage Dashboard</div>
-            <div className="dashboard-sub">Interactive visualizations and arc insights — toggle between different chart types to explore the data.</div>
-          </div>
-          <div className="dashboard-actions">
-            <button type="button" className="modal-close" onClick={onClose}>✕</button>
-          </div>
-        </div>
-
-        <div className="dashboard-main dashboard-main-enhanced">
-          {/* Visualization Selector */}
-          <div className="viz-selector">
-            {VISUALIZATION_OPTIONS.map((opt) => (
-              <button
-                key={opt.id}
-                className={`viz-toggle ${activeViz === opt.id ? 'active' : ''}`}
-                onClick={() => setActiveViz(opt.id)}
-                title={opt.label}
-              >
-                <span className="viz-icon">{opt.icon}</span>
-                <span className="viz-label">{opt.label}</span>
+      <div className="dashboard-panel-v2" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        {/* Header */}
+        <div className="dashboard-header-v2">
+          <div className="header-left">
+            {activeViz && (
+              <button className="back-btn" onClick={() => setActiveViz(null)}>
+                ← Back
               </button>
-            ))}
-          </div>
-
-          {/* Main Visualization Area */}
-          <div className="viz-main-area">
-            {renderVisualization()}
-          </div>
-
-          {/* Quick Stats Sidebar */}
-          <div className="viz-sidebar">
-            <div className="sidebar-section">
-              <h4>Quick Stats</h4>
-              <div className="stat-grid">
-                <div className="stat-card">
-                  <div className="stat-value">{arcs.length}</div>
-                  <div className="stat-label">Arcs</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-value">{metrics.reduce((sum, a) => sum + a.episodeCount, 0)}</div>
-                  <div className="stat-label">Episodes</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-value">10</div>
-                  <div className="stat-label">Crew Members</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-value">{metrics.filter((a) => a.worldImpact === 'Global').length}</div>
-                  <div className="stat-label">Global Events</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="sidebar-section">
-              <h4>Highest Stakes Arcs</h4>
-              <div className="arc-mini-list">
-                {metrics
-                  .sort((a, b) => b.crewRisk - a.crewRisk)
-                  .slice(0, 5)
-                  .map((arc) => (
-                    <div key={arc.id} className="arc-mini-item" onClick={() => { setSelectedArc(arc); onSelect?.(arc.id) }}>
-                      <span className="arc-mini-name">{arc.label.split('/')[0]}</span>
-                      <span className="arc-mini-risk" style={{ color: arc.crewRisk > 0.7 ? '#ff7a7a' : '#ffd97a' }}>
-                        {Math.round(arc.crewRisk * 100)}%
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            <div className="sidebar-section">
-              <h4>Legend</h4>
-              <div className="legend-info">
-                <p><strong>Narrative Weight:</strong> Story importance and plot significance</p>
-                <p><strong>Crew Risk:</strong> Danger level faced by the Straw Hats</p>
-                <p><strong>World Impact:</strong> How events affect the One Piece world</p>
-              </div>
+            )}
+            <div className="header-title">
+              <h1>{activeViz ? activeTile?.label : '📊 Voyage Dashboard'}</h1>
+              {!activeViz && <p>Select a visualization to explore the data</p>}
             </div>
           </div>
+          <button className="close-btn" onClick={onClose}>✕</button>
         </div>
+
+        {/* Main Content */}
+        <div className="dashboard-content-v2">
+          {renderContent()}
+        </div>
+
+        {/* Quick Stats Footer (only on tiles view) */}
+        {!activeViz && (
+          <div className="dashboard-footer-v2">
+            <div className="footer-stat">
+              <span className="fs-value">{arcs.length}</span>
+              <span className="fs-label">Arcs</span>
+            </div>
+            <div className="footer-stat">
+              <span className="fs-value">{metrics.reduce((sum, a) => sum + a.episodeCount, 0)}</span>
+              <span className="fs-label">Episodes</span>
+            </div>
+            <div className="footer-stat">
+              <span className="fs-value">10</span>
+              <span className="fs-label">Crew</span>
+            </div>
+            <div className="footer-stat">
+              <span className="fs-value">{metrics.filter(a => a.worldImpact === 'Global').length}</span>
+              <span className="fs-label">Global Events</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

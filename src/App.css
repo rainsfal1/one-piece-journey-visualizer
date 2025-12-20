@@ -1875,6 +1875,216 @@ canvas {
   padding: 16px;
 }
 
+/* ===== Saga-Arc Unified Visualization ===== */
+.saga-summary-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.saga-summary-card {
+  display: flex;
+  align-items: stretch;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1;
+  min-width: 120px;
+}
+
+.saga-summary-card:hover,
+.saga-summary-card.hovered {
+  background: rgba(255,255,255,0.06);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+.saga-summary-card.selected {
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 0 0 2px var(--saga-color), 0 4px 16px rgba(0,0,0,0.3);
+}
+
+.saga-card-bar {
+  width: 4px;
+  flex-shrink: 0;
+}
+
+.saga-card-content {
+  padding: 10px 12px;
+  flex: 1;
+}
+
+.saga-card-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #eaf3ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.saga-card-stats {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.saga-card-stats .saga-eps {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--saga-color);
+}
+
+.saga-card-stats .saga-arcs {
+  font-size: 11px;
+  color: #9ab8e0;
+}
+
+/* Arc groups container */
+.saga-arc-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.saga-arc-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.saga-arc-container::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.03);
+  border-radius: 3px;
+}
+
+.saga-arc-container::-webkit-scrollbar-thumb {
+  background: rgba(108,195,255,0.3);
+  border-radius: 3px;
+}
+
+.saga-group {
+  background: rgba(255,255,255,0.02);
+  border-radius: 12px;
+  padding: 14px 16px;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.saga-group.dimmed {
+  opacity: 0.4;
+}
+
+.saga-group.selected {
+  border-color: var(--saga-color, #6cc3ff);
+  background: rgba(255,255,255,0.04);
+  box-shadow: 0 0 20px rgba(108,195,255,0.2);
+  animation: sagaPulse 0.5s ease-out;
+}
+
+@keyframes sagaPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(108,195,255,0.4);
+  }
+  50% {
+    transform: scale(1.01);
+    box-shadow: 0 0 30px rgba(108,195,255,0.3);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(108,195,255,0.2);
+  }
+}
+
+.saga-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.saga-group-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.saga-group-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #eaf3ff;
+  flex: 1;
+}
+
+.saga-group-total {
+  font-size: 12px;
+  color: #9ab8e0;
+}
+
+/* Arc bars within saga */
+.arc-bars-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.arc-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.arc-bar-label {
+  font-size: 12px;
+  color: #cde6ff;
+  width: 140px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arc-bar-track {
+  flex: 1;
+  height: 24px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.arc-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+  min-width: 30px;
+}
+
+.arc-bar-value {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.viz-stats-bottom {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
 /* Saga Legend & Split View */
 .viz-split-view {
   display: flex;

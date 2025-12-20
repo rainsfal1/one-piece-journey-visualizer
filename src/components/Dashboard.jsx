@@ -82,104 +82,163 @@ function CustomTooltip({ active, payload, label }) {
   )
 }
 
-/** Combined Episode & Saga Visualization */
+// Saga color mapping for consistent styling
+const SAGA_COLORS = {
+  'East Blue Saga': '#6cc3ff',
+  'Alabasta Saga': '#ffd97a', 
+  'Sky Island Saga': '#7aff9a',
+  'Water 7 Saga': '#ff9a7a',
+  'Thriller Bark Saga': '#d97aff',
+  'Summit War Saga': '#ff7ab8',
+  'Fish-Man Island Saga': '#7affff',
+  'Dressrosa Saga': '#b8ff7a',
+  'Whole Cake Island Saga': '#ff7a7a',
+  'Wano Country Saga': '#ffa07a',
+  'Final Saga': '#c8a0ff',
+}
+
+/** Combined Episode & Saga Visualization - Unified View */
 function EpisodeSagaViz() {
   const episodeData = useMemo(() => getEpisodeCountByArc(), [])
   const sagaData = useMemo(() => getSagaDistribution(), [])
-  const [view, setView] = useState('bars') // 'bars' | 'pie'
+  const [hoveredSaga, setHoveredSaga] = useState(null)
+  const [selectedSaga, setSelectedSaga] = useState(null)
+  const sagaRefs = useMemo(() => ({}), [])
 
   const totalEpisodes = episodeData.reduce((sum, a) => sum + a.episodeCount, 0)
+  
+  // Group arcs by saga for the unified view
+  const groupedData = useMemo(() => {
+    const groups = {}
+    episodeData.forEach(arc => {
+      const saga = arc.saga || 'Unknown'
+      if (!groups[saga]) groups[saga] = { saga, arcs: [], total: 0 }
+      groups[saga].arcs.push(arc)
+      groups[saga].total += arc.episodeCount
+    })
+    return Object.values(groups)
+  }, [episodeData])
+
+  // Handle saga card click - scroll to and highlight
+  const handleSagaClick = (sagaName) => {
+    setSelectedSaga(sagaName)
+    setHoveredSaga(sagaName)
+    
+    // Scroll the saga group into view
+    const element = sagaRefs[sagaName]
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+    
+    // Clear selection after a delay
+    setTimeout(() => {
+      setSelectedSaga(null)
+    }, 2000)
+  }
 
   return (
     <div className="viz-full">
       <div className="viz-full-header">
         <div className="viz-header-text">
-          <h2>📊 Episodes & Saga Distribution</h2>
-          <p>Explore how episodes are distributed across arcs and major sagas</p>
-        </div>
-        <div className="view-toggle">
-          <button className={view === 'bars' ? 'active' : ''} onClick={() => setView('bars')}>
-            <span>📊</span> By Arc
-          </button>
-          <button className={view === 'pie' ? 'active' : ''} onClick={() => setView('pie')}>
-            <span>🥧</span> By Saga
-          </button>
+          <h2>📊 The Grand Line Journey</h2>
+          <p>Episode distribution across sagas and their story arcs — click a saga to jump to it</p>
         </div>
       </div>
 
-      <div className="viz-stats-row">
+      {/* Saga summary cards */}
+      <div className="saga-summary-row">
+        {sagaData.map((saga) => {
+          const color = SAGA_COLORS[saga.saga] || '#6cc3ff'
+          const isActive = hoveredSaga === saga.saga || selectedSaga === saga.saga
+          return (
+            <div 
+              key={saga.saga}
+              className={`saga-summary-card ${isActive ? 'hovered' : ''} ${selectedSaga === saga.saga ? 'selected' : ''}`}
+              style={{ '--saga-color': color }}
+              onMouseEnter={() => setHoveredSaga(saga.saga)}
+              onMouseLeave={() => !selectedSaga && setHoveredSaga(null)}
+              onClick={() => handleSagaClick(saga.saga)}
+            >
+              <div className="saga-card-bar" style={{ background: color }} />
+              <div className="saga-card-content">
+                <div className="saga-card-name">{saga.saga.replace(' Saga', '')}</div>
+                <div className="saga-card-stats">
+                  <span className="saga-eps">{saga.episodeCount} eps</span>
+                  <span className="saga-arcs">{saga.arcCount} arcs</span>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Main visualization - Arcs grouped by Saga */}
+      <div className="saga-arc-container">
+        {groupedData.map((group) => {
+          const color = SAGA_COLORS[group.saga] || '#6cc3ff'
+          const isHighlighted = !hoveredSaga || hoveredSaga === group.saga
+          const isSelected = selectedSaga === group.saga
+          const percentage = Math.round((group.total / totalEpisodes) * 100)
+          
+          return (
+            <div 
+              key={group.saga} 
+              ref={(el) => { sagaRefs[group.saga] = el }}
+              className={`saga-group ${isHighlighted ? '' : 'dimmed'} ${isSelected ? 'selected' : ''}`}
+              style={{ '--saga-color': color }}
+              onMouseEnter={() => setHoveredSaga(group.saga)}
+              onMouseLeave={() => !selectedSaga && setHoveredSaga(null)}
+            >
+              <div className="saga-group-header">
+                <div className="saga-group-indicator" style={{ background: color }} />
+                <div className="saga-group-title">{group.saga.replace(' Saga', '')}</div>
+                <div className="saga-group-total">{group.total} episodes ({percentage}%)</div>
+              </div>
+              
+              <div className="arc-bars-container">
+                {group.arcs.map((arc) => {
+                  const widthPercent = (arc.episodeCount / Math.max(...group.arcs.map(a => a.episodeCount))) * 100
+                  return (
+                    <div key={arc.id} className="arc-bar-row">
+                      <div className="arc-bar-label">{arc.label}</div>
+                      <div className="arc-bar-track">
+                        <div 
+                          className="arc-bar-fill" 
+                          style={{ 
+                            width: `${widthPercent}%`,
+                            background: `linear-gradient(90deg, ${color}dd, ${color}88)`
+                          }}
+                        />
+                        <span className="arc-bar-value">{arc.episodeCount}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Bottom stats */}
+      <div className="viz-stats-row viz-stats-bottom">
         <div className="viz-stat">
           <span className="viz-stat-value">{totalEpisodes}</span>
           <span className="viz-stat-label">Total Episodes</span>
         </div>
         <div className="viz-stat">
           <span className="viz-stat-value">{episodeData.length}</span>
-          <span className="viz-stat-label">Arcs</span>
+          <span className="viz-stat-label">Story Arcs</span>
         </div>
         <div className="viz-stat">
           <span className="viz-stat-value">{sagaData.length}</span>
-          <span className="viz-stat-label">Sagas</span>
+          <span className="viz-stat-label">Major Sagas</span>
         </div>
         <div className="viz-stat">
           <span className="viz-stat-value">{Math.round(totalEpisodes / episodeData.length)}</span>
           <span className="viz-stat-label">Avg per Arc</span>
         </div>
       </div>
-
-      {view === 'bars' ? (
-        <div className="viz-chart-full" style={{ height: 380 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={episodeData} margin={{ top: 20, right: 20, bottom: 80, left: 20 }}>
-              <defs>
-                <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6cc3ff" stopOpacity={1} />
-                  <stop offset="100%" stopColor="#6cc3ff" stopOpacity={0.5} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-              <XAxis dataKey="shortLabel" angle={-45} textAnchor="end" height={80} stroke="#8ab4f8" fontSize={11} />
-              <YAxis stroke="#8ab4f8" />
-              <ReTooltip content={<CustomTooltip />} />
-              <Bar dataKey="episodeCount" name="Episodes" fill="url(#barGrad)" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <div className="viz-split-view">
-          <div className="viz-chart-half">
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie 
-                  data={sagaData} 
-                  dataKey="episodeCount" 
-                  nameKey="saga" 
-                  cx="50%" 
-                  cy="50%" 
-                  innerRadius={60}
-                  outerRadius={110} 
-                  paddingAngle={2}
-                  label={({ saga, percent }) => `${saga.split(' ')[0]} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {sagaData.map((entry, index) => (
-                    <Cell key={entry.saga} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <ReTooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="saga-legend">
-            {sagaData.map((s, i) => (
-              <div key={s.saga} className="saga-legend-item">
-                <span className="saga-dot" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                <span className="saga-name">{s.saga}</span>
-                <span className="saga-count">{s.episodeCount} eps</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
